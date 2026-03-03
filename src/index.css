@@ -1,0 +1,167 @@
+/* ============================================================
+   GreenLight Design System — Foundations
+   Mission Control: deep dark space, precision mono, green signal.
+   ============================================================ */
+
+/* --- Custom Properties --- */
+:root {
+  /* Brand */
+  --gl-green: #22c55e;
+  --gl-green-dim: #166534;
+  --gl-green-glow: rgba(34, 197, 94, 0.12);
+
+  /* Semantic */
+  --gl-red: #ef4444;
+  --gl-red-dim: #7f1d1d;
+  --gl-blue: #38bdf8;
+  --gl-blue-dim: #0c4a6e;
+  --gl-amber: #f59e0b;
+  --gl-amber-dim: #78350f;
+
+  /* Text */
+  --gl-text: #b8c9db;
+  --gl-text-bright: #e2eaf3;
+  --gl-dim: #4a5d75;
+  --gl-muted: #6b7f95;
+
+  /* Surfaces */
+  --gl-bg: #06090f;
+  --gl-bg-alt: #080d14;
+  --gl-card: #0c1219;
+  --gl-card-hover: #101d28;
+  --gl-bg-input: #0f1923;
+  --gl-bg-button: #162030;
+  --gl-bg-button-hover: #1c2840;
+
+  /* Borders */
+  --gl-border: #1a2a3e;
+  --gl-border-accent: #1a3a60;
+  --gl-border-focus: #38bdf8;
+
+  /* Spacing scale (~33% larger) */
+  --gl-space-1: 3px;
+  --gl-space-2: 5px;
+  --gl-space-3: 10px;
+  --gl-space-4: 16px;
+  --gl-space-5: 20px;
+  --gl-space-6: 26px;
+  --gl-space-7: 32px;
+  --gl-space-8: 42px;
+  --gl-space-9: 64px;
+
+  /* Radii */
+  --gl-radius-sm: 4px;
+  --gl-radius-md: 5px;
+  --gl-radius-lg: 8px;
+  --gl-radius-xl: 10px;
+
+  /* Motion */
+  --gl-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --gl-duration: 150ms;
+  --gl-duration-slow: 300ms;
+
+  /* Base typography */
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--gl-text);
+  background-color: var(--gl-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "tnum"; /* Tabular numbers — columns of data align */
+}
+
+
+/* --- Reset --- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+
+/* --- Base Elements --- */
+
+a {
+  color: var(--gl-blue);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  border-radius: var(--gl-radius-md);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Keyboard-only focus ring */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--gl-bg), 0 0 0 4px var(--gl-blue);
+}
+
+/* Selection highlight */
+::selection {
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--gl-text-bright);
+}
+
+
+/* --- Scrollbar --- */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--gl-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gl-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a3a4e;
+}
+
+
+/* --- Keyframe Animations --- */
+
+@keyframes gl-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gl-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gl-slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes gl-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes gl-glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.7); }
+}

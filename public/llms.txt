@@ -1,0 +1,41 @@
+# GreenLight
+
+> Free, privacy-first financial planning tool that runs entirely in your browser.
+
+## What is GreenLight?
+
+GreenLight is a browser-based financial planning tool that helps users:
+- Understand their complete financial picture (assets, income, expenses, obligations)
+- Calculate accurate tax estimates using progressive federal and state tax brackets
+- Plan major purchases (homes, vehicles) with detailed cost breakdowns
+- Compare mortgage lenders with opportunity-cost-adjusted analysis
+- Project financial readiness timelines
+
+## Key Features
+
+- **No account required** — all data stored locally in the browser
+- **Privacy-first** — no user financial data leaves the device; all portfolio and tax data is stored locally. Live price feeds require outbound calls to Gemini, CoinGecko, Yahoo Finance, and Finnhub.
+- **Progressive tax engine** — all 50 US states, 4 filing statuses, NIIT, LTCG stacking
+- **Mortgage calculator** — amortization, PMI analysis, points break-even with opportunity cost
+- **Lender comparison** — side-by-side with buy-down signal (green/yellow/red)
+- **Purchase planning** — home and vehicle cost breakdowns with liquidation analysis
+- **Real-time prices** — crypto (Gemini, CoinGecko), stocks (Yahoo Finance, Finnhub)
+- **Import support** — Fidelity CSV portfolio positions
+
+## How to Use
+
+1. Visit the app and complete the setup wizard (income, expenses, accounts)
+2. Add assets manually or import from supported brokerages
+3. View your dashboard for net position and tax summary
+4. Navigate to the Purchase page and select a category (home or vehicle) to unlock mortgage and lender comparison tools
+5. Check the Readiness page for a timeline to your purchase goal
+
+## Technical Details
+
+- Built with React 19 + Vite
+- Data persists in localStorage + IndexedDB (no server required)
+- Self-hostable — deployable via Docker or any static host
+
+## Links
+
+- App: https://gotthegreenlight.com/

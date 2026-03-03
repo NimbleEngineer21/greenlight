@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a1628;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d1f3c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:0" />
+      <stop offset="50%" style="stop-color:#00ff88;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#00ff88;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Subtle grid lines -->
+  <g stroke="#1a2d4a" stroke-width="1" opacity="0.5">
+    <line x1="0" y1="105" x2="1200" y2="105" />
+    <line x1="0" y1="210" x2="1200" y2="210" />
+    <line x1="0" y1="315" x2="1200" y2="315" />
+    <line x1="0" y1="420" x2="1200" y2="420" />
+    <line x1="0" y1="525" x2="1200" y2="525" />
+    <line x1="200" y1="0" x2="200" y2="630" />
+    <line x1="400" y1="0" x2="400" y2="630" />
+    <line x1="600" y1="0" x2="600" y2="630" />
+    <line x1="800" y1="0" x2="800" y2="630" />
+    <line x1="1000" y1="0" x2="1000" y2="630" />
+  </g>
+
+  <!-- Green glow bar -->
+  <rect x="0" y="290" width="1200" height="50" fill="url(#glow)" />
+
+  <!-- Signal dot -->
+  <circle cx="140" cy="250" r="18" fill="#00ff88" opacity="0.9" />
+  <circle cx="140" cy="250" r="30" fill="#00ff88" opacity="0.15" />
+  <circle cx="140" cy="250" r="44" fill="#00ff88" opacity="0.06" />
+
+  <!-- GreenLight wordmark -->
+  <text x="186" y="270" font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="72" font-weight="700" fill="#e8f4ff" letter-spacing="-2">GreenLight</text>
+
+  <!-- Tagline -->
+  <text x="186" y="330" font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="28" font-weight="400" fill="#4a9eff" letter-spacing="1">Know exactly when all the math turns green.</text>
+
+  <!-- Feature pills -->
+  <g font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="18" font-weight="500">
+    <!-- Pill 1 -->
+    <rect x="140" y="390" width="220" height="40" rx="6" fill="#0d2a1a" stroke="#00ff88" stroke-width="1" opacity="0.8" />
+    <text x="250" y="416" text-anchor="middle" fill="#00ff88">Tax Engine</text>
+
+    <!-- Pill 2 -->
+    <rect x="380" y="390" width="240" height="40" rx="6" fill="#0a1f35" stroke="#4a9eff" stroke-width="1" opacity="0.8" />
+    <text x="500" y="416" text-anchor="middle" fill="#4a9eff">Mortgage Calc</text>
+
+    <!-- Pill 3 -->
+    <rect x="640" y="390" width="260" height="40" rx="6" fill="#0a1f35" stroke="#4a9eff" stroke-width="1" opacity="0.8" />
+    <text x="770" y="416" text-anchor="middle" fill="#4a9eff">Lender Compare</text>
+
+    <!-- Pill 4 -->
+    <rect x="920" y="390" width="210" height="40" rx="6" fill="#0d2a1a" stroke="#00ff88" stroke-width="1" opacity="0.8" />
+    <text x="1025" y="416" text-anchor="middle" fill="#00ff88">Readiness</text>
+  </g>
+
+  <!-- Privacy badge -->
+  <text x="140" y="510" font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="20" fill="#4a7a5a" letter-spacing="2">NO ACCOUNT · BROWSER-ONLY · FREE</text>
+
+  <!-- URL -->
+  <text x="1060" y="580" font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="18" fill="#2a4a6a" text-anchor="end">gotthegreenlight.com</text>
+
+  <!-- Border accent -->
+  <rect x="1" y="1" width="1198" height="628" rx="0" fill="none" stroke="#1a3a5a" stroke-width="2" />
+  <rect x="0" y="0" width="6" height="630" fill="#00ff88" opacity="0.6" />
+</svg>

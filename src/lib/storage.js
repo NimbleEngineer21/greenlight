@@ -1,0 +1,144 @@
+import { createDefaultState, SCHEMA_VERSION } from "../data/defaults.js";
+import { exportIndexedDB, importIndexedDB } from "./db.js";
+import { encryptData, decryptData } from "./crypto.js";
+
+const STORAGE_KEY = "greenlight";
+
+export function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return createDefaultState();
+    const parsed = JSON.parse(raw);
+    return migrateState(parsed);
+  } catch {
+    return createDefaultState();
+  }
+}
+
+export function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export function resetState() {
+  localStorage.removeItem(STORAGE_KEY);
+  return createDefaultState();
+}
+
+export async function exportState(state, password) {
+  if (!state) state = loadState();
+  const backup = { ...state };
+  try {
+    const idbData = await exportIndexedDB();
+    if (idbData) backup._indexedDB = idbData;
+  } catch (err) {
+    console.warn("[GreenLight] Could not include IndexedDB data in backup:", err.message);
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  let blob, filename;
+  if (password) {
+    const envelope = await encryptData(backup, password);
+    blob = new Blob([JSON.stringify(envelope)], { type: "application/json" });
+    filename = `greenlight-backup-${date}.greenlight`;
+  } else {
+    blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    filename = `greenlight-backup-${date}.json`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function importState(jsonString, password) {
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch {
+    throw new Error("This file is not valid JSON. Make sure you selected a GreenLight backup file (.json or .greenlight).");
+  }
+  let backup;
+  if (parsed.format === "greenlight-encrypted-v1") {
+    if (!password) throw new Error("This file is encrypted. A password is required to import it.");
+    backup = await decryptData(parsed, password);
+  } else {
+    backup = parsed;
+  }
+  validateImport(backup);
+  const idbData = backup._indexedDB;
+  delete backup._indexedDB;
+  const migrated = migrateState(backup);
+  // Restore IndexedDB first — if it fails, localStorage is untouched
+  if (idbData) {
+    try {
+      await importIndexedDB(idbData);
+    } catch (err) {
+      console.warn("[GreenLight] IndexedDB import failed, continuing with localStorage only:", err.message);
+    }
+  }
+  saveState(migrated);
+  return migrated;
+}
+
+/**
+ * Validate imported JSON has the expected shape before migrating.
+ * Throws descriptive errors for common problems.
+ */
+export function validateImport(obj) {
+  if (obj == null || typeof obj !== "object" || Array.isArray(obj)) {
+    throw new Error("Import must be a JSON object, not " + (Array.isArray(obj) ? "an array" : typeof obj));
+  }
+
+  // Must have a schema version (any GreenLight export has one)
+  if (obj.schemaVersion == null && obj.assets == null && obj.cashAccounts == null) {
+    throw new Error("This doesn't look like a GreenLight backup (no schemaVersion or data found)");
+  }
+
+  // Schema version sanity check
+  if (obj.schemaVersion != null) {
+    if (typeof obj.schemaVersion !== "number" || obj.schemaVersion < 1) {
+      throw new Error(`Invalid schemaVersion: ${obj.schemaVersion}`);
+    }
+    if (obj.schemaVersion > SCHEMA_VERSION + 5) {
+      throw new Error(`This backup is from a newer version (v${obj.schemaVersion}). Update GreenLight first.`);
+    }
+  }
+
+  // Validate array fields are actually arrays
+  const arrayFields = ["assets", "cashAccounts", "lenders", "capitalSales"];
+  for (const field of arrayFields) {
+    if (obj[field] != null && !Array.isArray(obj[field])) {
+      throw new Error(`"${field}" must be an array, got ${typeof obj[field]}`);
+    }
+  }
+
+  // Validate assets have required fields
+  if (Array.isArray(obj.assets)) {
+    for (let i = 0; i < obj.assets.length; i++) {
+      const a = obj.assets[i];
+      if (typeof a !== "object" || a == null) {
+        throw new Error(`assets[${i}] is not an object`);
+      }
+      if (!a.name && !a.symbol) {
+        throw new Error(`assets[${i}] missing both name and symbol`);
+      }
+      if (a.quantity != null && typeof a.quantity !== "number") {
+        throw new Error(`assets[${i}] quantity must be a number`);
+      }
+    }
+  }
+
+  // Validate retirement accounts if present
+  const ret = obj.retirement;
+  if (ret != null && typeof ret === "object") {
+    if (ret.accounts != null && !Array.isArray(ret.accounts)) {
+      throw new Error(`retirement.accounts must be an array`);
+    }
+  }
+}
+
+export function migrateState(state) {
+  if (state.schemaVersion === SCHEMA_VERSION) return state;
+  return createDefaultState();
+}

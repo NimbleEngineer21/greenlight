@@ -1,0 +1,56 @@
+/**
+ * Registry of supported financial data providers.
+ * Single source of truth for Import.jsx platform options, hints, and metadata.
+ */
+export const PROVIDERS = {
+  computershare: {
+    name: "ComputerShare",
+    label: "ComputerShare (CSV)",
+    formats: ["csv"],
+    description: "Stock transfer agent — share lot transaction history",
+    hint: "Upload one or more ComputerShare transaction CSV exports",
+    acceptAttr: ".csv",
+    multiple: true,
+    outputType: "assets",
+  },
+  gemini: {
+    name: "Gemini",
+    label: "Gemini (XLSX)",
+    formats: ["xlsx"],
+    description: "Crypto exchange — trading history",
+    hint: "Upload Gemini transaction_history.xlsx",
+    acceptAttr: ".xlsx,.xls",
+    multiple: false,
+    outputType: "assets",
+  },
+  fidelity: {
+    name: "Fidelity",
+    label: "Fidelity (CSV)",
+    formats: ["csv"],
+    description: "Brokerage — portfolio positions",
+    hint: "Upload Fidelity Portfolio Positions CSV export",
+    acceptAttr: ".csv",
+    multiple: false,
+    outputType: "assets",
+  },
+  transamerica: {
+    name: "Transamerica",
+    label: "Transamerica (CSV)",
+    formats: ["csv"],
+    description: "Retirement/401(k) — fund holdings and source balances",
+    hint: "Upload fund-holdings.csv and/or source-balance.csv from Transamerica",
+    acceptAttr: ".csv",
+    multiple: true,
+    outputType: "retirement",
+  },
+  custom: {
+    name: "Custom CSV",
+    label: "Unknown / Custom CSV",
+    formats: ["csv"],
+    description: "Any CSV — heuristic column detection with manual fallback",
+    hint: "Upload any CSV — we'll detect columns automatically",
+    acceptAttr: ".csv",
+    multiple: false,
+    outputType: "assets",
+  },
+};
