@@ -35,3 +35,10 @@ data/tax/
 
 # Local planning docs — not for public history
 docs/plans/2026-*.md
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
