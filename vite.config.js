@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { readdirSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Dev-only plugin: exposes GET /api/dev/data-files that walks data/user_*/
 // so the app can detect locally placed brokerage exports and offer to import them.
 // This endpoint only exists during `npm run dev` — the production build is static
@@ -44,7 +46,7 @@ function devDataFilesPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), devDataFilesPlugin()],
+  plugins: [react(), devDataFilesPlugin(), cloudflare()],
   server: {
     proxy: {
       '/api/yahoo': {
