@@ -5,6 +5,7 @@ import { parseComputerShareCSV } from "../lib/parsers/computershare.js";
 import { parseGeminiXLSX } from "../lib/parsers/gemini.js";
 import { parseFidelityCSV } from "../lib/parsers/fidelity.js";
 import { parseTransamericaCSV } from "../lib/parsers/transamerica.js";
+import { parsePayPalCSV } from "../lib/parsers/paypal.js";
 import { detectColumnMappings, applyColumnMapping } from "../lib/parsers/custom.js";
 import { PROVIDERS } from "../data/providers.js";
 import { fmt, fmtQty } from "../lib/calculations.js";
@@ -62,6 +63,12 @@ export default function Import({ updateState }) {
         }
         const result = parseTransamericaCSV(namedFiles);
         setParsed({ platform: "Transamerica", ...result });
+      } else if (platform === "paypal") {
+        const csvFile = fileList.find(f => f.name.endsWith(".csv"));
+        if (!csvFile) { setError("Please upload a CSV file for PayPal."); return; }
+        const text = await csvFile.text();
+        const result = parsePayPalCSV(text);
+        setParsed({ platform: "PayPal", ...result });
       } else if (platform === "custom") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file."); return; }

@@ -23,6 +23,16 @@ export const PROVIDERS = {
     multiple: false,
     outputType: "assets",
   },
+  paypal: {
+    name: "PayPal",
+    label: "PayPal Crypto (CSV)",
+    formats: ["csv"],
+    description: "PayPal crypto — transaction history",
+    hint: "Upload PayPal crypto transaction history CSV (Activity → Statements → Crypto)",
+    acceptAttr: ".csv",
+    multiple: false,
+    outputType: "assets",
+  },
   fidelity: {
     name: "Fidelity",
     label: "Fidelity (CSV)",
