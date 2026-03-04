@@ -1,6 +1,7 @@
 // Purchase cost calculation — home closing costs, car costs, liquidation analysis
 import { HOME_CLOSING_DEFAULTS } from "../data/closingCosts.js";
 import { CAR_PURCHASE_DEFAULTS } from "../data/carCosts.js";
+import { calcReadinessDate } from "./readiness.js";
 
 /**
  * Loan type for a given purchase category.
@@ -89,6 +90,14 @@ export function calcTotalCashNeeded(downPayment, unpaidClosingCosts, pointsCost 
   };
 }
 
+// ─── Private helpers ──────────────────────────────────────────────────────────
+
+function fmtShortfall(n) {
+  return `SHORTFALL -$${Math.round(Math.abs(n) / 1000)}k`;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 /**
  * Liquidation analysis — can the user afford the purchase with current assets?
  * Uses calcSummary output to determine available cash from all sources.
@@ -118,4 +127,73 @@ export function calcLiquidationAnalysis(cashNeeded, summary) {
     cashFlowContribution: cashFlowNet,
     totalAvailable,
   };
+}
+
+/**
+ * Determine purchase readiness status and progress toward the green threshold.
+ *
+ * @param {object} purchase - state.purchase
+ * @param {object} readiness - state.readiness
+ * @param {{ cashNeeded, liquidation, monthlyExpenses, projections }} ctx
+ *   cashNeeded     — result of calcTotalCashNeeded()
+ *   liquidation    — result of calcLiquidationAnalysis()
+ *   monthlyExpenses — from calcMonthlySavings().monthlyExpenses
+ *   projections    — result of projectCashPosition() for ~N MOS AWAY badge, or null
+ * @returns {{ status, greenThreshold, yellowThreshold, progress, badgeLabel } | null}
+ *   Returns null when category is null or price is 0 (unconfigured)
+ */
+export function calcPurchaseReadinessStatus(purchase, readiness, {
+  cashNeeded, liquidation, monthlyExpenses, projections,
+}) {
+  const { category, homePrice, carPrice, carMaintenanceAnnual } = purchase;
+  const { reserveMonths = 6 } = readiness || {};
+
+  if (!category) return null;
+  if (category === "home" && homePrice <= 0) return null;
+  if (category === "vehicle" && carPrice <= 0) return null;
+
+  const totalAvailable = liquidation?.totalAvailable ?? 0;
+  const cashTotal = cashNeeded?.total ?? 0;
+
+  let greenThreshold, yellowThreshold;
+  if (category === "home") {
+    const emergencyBuffer = Math.max(homePrice * 0.1, reserveMonths * monthlyExpenses);
+    greenThreshold = cashTotal + emergencyBuffer;
+    yellowThreshold = cashTotal;
+  } else {
+    const annualMaintenance = carMaintenanceAnnual ?? (carPrice * 0.015);
+    greenThreshold = cashTotal + annualMaintenance;
+    yellowThreshold = cashTotal;
+  }
+
+  if (greenThreshold <= 0) {
+    return { status: "green", greenThreshold, yellowThreshold, progress: 1, badgeLabel: "READY" };
+  }
+
+  let status;
+  if (totalAvailable >= greenThreshold) {
+    status = "green";
+  } else if (totalAvailable >= yellowThreshold) {
+    status = "yellow";
+  } else {
+    status = "red";
+  }
+
+  const progress = Math.min(1, totalAvailable / greenThreshold);
+
+  let badgeLabel;
+  if (status === "green") {
+    badgeLabel = "READY";
+  } else if (status === "yellow") {
+    badgeLabel = "ALMOST";
+  } else {
+    const readinessDate = projections ? calcReadinessDate(projections, greenThreshold) : null;
+    if (readinessDate && readinessDate.month > 0) {
+      badgeLabel = `~${readinessDate.month} MOS AWAY`;
+    } else {
+      badgeLabel = fmtShortfall(totalAvailable - greenThreshold);
+    }
+  }
+
+  return { status, greenThreshold, yellowThreshold, progress, badgeLabel };
 }

@@ -218,6 +218,11 @@ export function calcSummary(state, prices) {
   };
 }
 
+export function calcSavingsRate(monthlyIncome, monthlyExpenses) {
+  if (!monthlyIncome) return null;
+  return (monthlyIncome - monthlyExpenses) / monthlyIncome;
+}
+
 export function calcMonthlySavings(cashFlowConfig) {
   const { paycheckAmount, paycheckFrequency, expenses } = cashFlowConfig;
   let monthlyIncome = 0;

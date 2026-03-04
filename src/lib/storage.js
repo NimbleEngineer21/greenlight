@@ -139,6 +139,27 @@ export function validateImport(obj) {
 }
 
 export function migrateState(state) {
+  // Unrecognizable or empty state — reset to avoid partial state bugs
+  if (state.schemaVersion == null && !Array.isArray(state.assets) && !Array.isArray(state.cashAccounts)) {
+    return createDefaultState();
+  }
+
+  // Already current — return as-is (preserves object reference)
   if (state.schemaVersion === SCHEMA_VERSION) return state;
-  return createDefaultState();
+
+  let data = { ...state };
+
+  // v1 → v2: add carMaintenanceAnnual to purchase
+  if ((data.schemaVersion ?? 0) < 2) {
+    if (data.purchase && data.purchase.carMaintenanceAnnual === undefined) {
+      data.purchase = { ...data.purchase, carMaintenanceAnnual: null };
+    }
+    data.schemaVersion = 2;
+  }
+
+  // Safety net: if still not at current version after all migrations, reset
+  if (data.schemaVersion !== SCHEMA_VERSION) {
+    return createDefaultState();
+  }
+  return data;
 }

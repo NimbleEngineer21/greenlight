@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isLongTerm, calcFee, paychecksBefore, expensesBefore,
   obligationsBefore, calcRetirementNet, calcSummary,
-  calcMonthlySavings, fmt, fmtQty,
+  calcMonthlySavings, calcSavingsRate, fmt, fmtQty,
 } from "../calculations.js";
 
 describe("isLongTerm", () => {
@@ -361,5 +361,19 @@ describe("calcMonthlySavings", () => {
       expenses: [{ amount: 5000, frequency: "monthly", startDate: "2026-01-01" }],
     });
     expect(result.monthlySavings).toBe(-2000);
+  });
+});
+
+describe("calcSavingsRate", () => {
+  it("returns null when income is 0", () => {
+    expect(calcSavingsRate(0, 2000)).toBeNull();
+  });
+
+  it("returns correct ratio (income 5000, expenses 3500 → 0.30)", () => {
+    expect(calcSavingsRate(5000, 3500)).toBeCloseTo(0.3, 10);
+  });
+
+  it("returns negative rate when expenses exceed income", () => {
+    expect(calcSavingsRate(3000, 4000)).toBeCloseTo(-1 / 3, 10);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { migrateState, validateImport, importState } from "../storage.js";
 import { encryptData } from "../crypto.js";
-import { SCHEMA_VERSION, createDefaultState } from "../../data/defaults.js";
+import { SCHEMA_VERSION } from "../../data/defaults.js";
 
 describe("migrateState", () => {
   it("returns the same state object when version matches current", () => {
@@ -9,22 +9,48 @@ describe("migrateState", () => {
     expect(migrateState(state)).toBe(state);
   });
 
-  it("returns fresh defaults when version is older", () => {
+  it("migrates v0 state to current version preserving data", () => {
     const result = migrateState({ schemaVersion: 0, purchase: { category: "home" } });
-    const defaults = createDefaultState();
     expect(result.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(result.purchase.category).toBe(defaults.purchase.category);
+    expect(result.purchase.category).toBe("home");
+    expect(result.purchase.carMaintenanceAnnual).toBeNull();
   });
 
-  it("returns fresh defaults when schemaVersion is absent", () => {
+  it("resets to defaults for empty/unrecognizable state", () => {
     const result = migrateState({});
     expect(result.schemaVersion).toBe(SCHEMA_VERSION);
     expect(Array.isArray(result.assets)).toBe(true);
   });
 
   it("fresh defaults include dateOfBirth field", () => {
-    const result = migrateState({ schemaVersion: 0 });
+    const result = migrateState({});
     expect(result.dateOfBirth).toEqual({ month: "", year: "" });
+  });
+
+  it("v1 state: adds carMaintenanceAnnual: null to purchase", () => {
+    const v1State = {
+      schemaVersion: 1,
+      assets: [],
+      cashAccounts: [],
+      purchase: { category: "home", homePrice: 350000 },
+    };
+    const result = migrateState(v1State);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.purchase.carMaintenanceAnnual).toBeNull();
+    expect(result.purchase.homePrice).toBe(350000);
+  });
+
+  it("v1 state: other fields preserved intact", () => {
+    const v1State = {
+      schemaVersion: 1,
+      assets: [{ name: "GME", symbol: "GME", quantity: 10 }],
+      cashAccounts: [{ name: "Checking", balance: 5000 }],
+      purchase: { category: "vehicle", carPrice: 35000 },
+    };
+    const result = migrateState(v1State);
+    expect(result.assets).toHaveLength(1);
+    expect(result.assets[0].name).toBe("GME");
+    expect(result.cashAccounts[0].balance).toBe(5000);
   });
 });
 
