@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { calcSummary, calcMonthlySavings, fmt, fmtDate, fmtQty } from "../lib/calculations.js";
-import { calcHomeCosts, calcCarCosts, calcDownPayment, calcTotalCashNeeded, loanTypeForCategory } from "../lib/purchasePlanner.js";
+import { calcSummary, calcMonthlySavings, calcSavingsRate, fmt, fmtDate, fmtQty } from "../lib/calculations.js";
+import { calcHomeCosts, calcCarCosts, calcDownPayment, calcTotalCashNeeded, calcLiquidationAnalysis, calcPurchaseReadinessStatus, loanTypeForCategory } from "../lib/purchasePlanner.js";
 import { calcPointsCost } from "../lib/mortgageCalc.js";
 import { projectCashPosition, calcReadinessDate } from "../lib/readiness.js";
 import { RETIREMENT_ACCOUNT_TYPES } from "../data/defaults.js";
@@ -19,6 +19,54 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   const c = useMemo(() => calcSummary(state, prices), [state, prices]);
   const monthly = useMemo(() => calcMonthlySavings(state.cashFlow), [state.cashFlow]);
   const navigate = useNavigate();
+
+  const purchase = useMemo(() => state.purchase || {}, [state.purchase]);
+
+  const projections = useMemo(
+    () => purchase.category ? projectCashPosition(state, prices, 60) : null,
+    [state, prices, purchase.category],
+  );
+
+  const statusCashNeeded = useMemo(() => {
+    if (!purchase.category) return null;
+    const isHome = purchase.category === "home";
+    const price = isHome ? (purchase.homePrice || 0) : (purchase.carPrice || 0);
+    if (price <= 0) return null;
+    const dp = isHome
+      ? calcDownPayment(price, purchase.downPaymentPercent || 20)
+      : { amount: purchase.carDownPayment || 0 };
+    const costs = isHome
+      ? calcHomeCosts(price, purchase.closingCostOverrides, purchase.closingCostPaid)
+      : calcCarCosts(price, purchase.carCostOverrides, purchase.carCostPaid);
+    const pc = isHome
+      ? calcPointsCost(price - dp.amount, state.mortgage?.pointsBought || 0, state.mortgage?.pointCostPercent || 1)
+      : 0;
+    return calcTotalCashNeeded(dp.amount, costs.unpaidTotal, pc);
+  }, [purchase, state.mortgage]);
+
+  const statusLiquidation = useMemo(
+    () => statusCashNeeded ? calcLiquidationAnalysis(statusCashNeeded.total, c) : null,
+    [statusCashNeeded, c],
+  );
+
+  const statusResult = useMemo(
+    () => calcPurchaseReadinessStatus(purchase, state.readiness, {
+      cashNeeded: statusCashNeeded,
+      liquidation: statusLiquidation,
+      monthlyExpenses: monthly.monthlyExpenses,
+      projections,
+    }),
+    [purchase, state.readiness, statusCashNeeded, statusLiquidation, monthly.monthlyExpenses, projections],
+  );
+
+  const savingsRate = useMemo(
+    () => calcSavingsRate(monthly.monthlyIncome, monthly.monthlyExpenses),
+    [monthly.monthlyIncome, monthly.monthlyExpenses],
+  );
+
+  const statusColor = statusResult
+    ? { green: colors.green, yellow: colors.amber, red: colors.red }[statusResult.status]
+    : null;
   const exportDaysSince = useMemo(() => {
     if (!state.lastExportDate) return null;
     const last = new Date(state.lastExportDate + "T12:00:00");
@@ -39,20 +87,36 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   return (
     <div>
       {/* Summary Bar — top-level totals */}
-      <div style={{ background: `linear-gradient(135deg, ${colors.bgGradientStart}, ${colors.bgGradientEnd})`, border: `2px solid ${colors.borderAccent}`, borderRadius: 10, padding: 20, marginBottom: 18 }}>
-        <div className="gl-summary-bar" style={{ gap: 18, textAlign: "center" }}>
-          {[
-            { l: "Gross Value", v: c.totalGross, clr: colors.dim, sz: 26 },
-            { l: "Fees + Penalties + Tax", v: -(c.totalFees + c.tax + c.retirement.deductions), clr: colors.red, sz: 24 },
-            { l: "Income − Expenses", v: c.cashFlow.net, clr: c.cashFlow.net >= 0 ? colors.green : colors.red, sz: 24 },
-            { l: `NET CASH · ${fmtDate(c.sellDate)}`, v: c.totalLiquid, clr: colors.green, sz: 35 },
-          ].map((t, i) => (
-            <div key={i}>
-              <div style={labelSt}>{t.l}</div>
-              <div style={{ fontSize: t.sz, fontWeight: 700, color: t.clr, marginTop: 5 }}>{fmt(t.v)}</div>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ background: `linear-gradient(135deg, ${colors.bgGradientStart}, ${colors.bgGradientEnd})`, border: statusColor ? `2px solid ${statusColor}66` : `2px solid ${colors.borderAccent}`, borderRadius: 10, padding: 20, boxShadow: statusColor ? `0 0 18px ${statusColor}33` : "none" }}>
+          {(statusResult || savingsRate !== null) && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              {statusResult && <StatusPill label={statusResult.badgeLabel} color={statusColor} />}
+              {!statusResult && savingsRate !== null && (
+                <StatusPill
+                  label={`SAVING ${Math.round(savingsRate * 100)}%`}
+                  color={savingsRate >= 0.2 ? colors.green : savingsRate >= 0.1 ? colors.amber : colors.red}
+                />
+              )}
             </div>
-          ))}
+          )}
+          <div className="gl-summary-bar" style={{ gap: 18, textAlign: "center" }}>
+            {[
+              { l: "Gross Value", v: c.totalGross, clr: colors.dim, sz: 26 },
+              { l: "Fees + Penalties + Tax", v: -(c.totalFees + c.tax + c.retirement.deductions), clr: colors.red, sz: 24 },
+              { l: "Income − Expenses", v: c.cashFlow.net, clr: c.cashFlow.net >= 0 ? colors.green : colors.red, sz: 24 },
+              { l: `NET CASH · ${fmtDate(c.sellDate)}`, v: c.totalLiquid, clr: colors.green, sz: 35 },
+            ].map((t, i) => (
+              <div key={i}>
+                <div style={labelSt}>{t.l}</div>
+                <div style={{ fontSize: t.sz, fontWeight: 700, color: t.clr, marginTop: 5 }}>{fmt(t.v)}</div>
+              </div>
+            ))}
+          </div>
         </div>
+        {statusResult && statusResult.status !== "green" && (
+          <ReadinessProgressBar progress={statusResult.progress} color={statusColor} />
+        )}
       </div>
 
       {/* Cash Flow Cards */}
@@ -177,7 +241,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
       </div>
 
       {/* Readiness Widget — only when planning is active */}
-      {state.purchase?.category && <ReadinessWidget state={state} prices={prices} />}
+      {state.purchase?.category && <ReadinessWidget state={state} projections={projections} statusResult={statusResult} />}
 
       {/* Planning CTA */}
       {!state.purchase?.category && (
@@ -218,7 +282,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   );
 }
 
-function ReadinessWidget({ state, prices }) {
+function ReadinessWidget({ state, projections, statusResult }) {
   const purchase = state.purchase || {};
   const mortgage = state.mortgage || {};
   const isHome = purchase.category === "home";
@@ -249,19 +313,16 @@ function ReadinessWidget({ state, prices }) {
   const reserveAmount = (readiness.reserveMonths || 6) * monthly.monthlyExpenses;
   const targetTotal = cashNeeded.total + reserveAmount;
 
-  const projections = useMemo(
-    () => projectCashPosition(state, prices, 60),
-    [state, prices],
-  );
-
   const readinessDate = useMemo(
-    () => calcReadinessDate(projections, targetTotal),
+    () => calcReadinessDate(projections ?? [], targetTotal),
     [projections, targetTotal],
   );
 
   const isReady = readinessDate && readinessDate.month === 0;
   const label = isHome ? "Home purchase" : "Car purchase";
-  const signalColor = isReady ? colors.green
+  const signalColor = statusResult
+    ? { green: colors.green, yellow: colors.amber, red: colors.red }[statusResult.status]
+    : isReady ? colors.green
     : readinessDate && readinessDate.month <= 12 ? colors.amber
     : colors.red;
 
@@ -298,5 +359,28 @@ function ReadinessWidget({ state, prices }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function StatusPill({ label, color }) {
+  return (
+    <span style={{
+      background: `${color}22`, border: `1px solid ${color}55`,
+      color, borderRadius: 20, padding: "3px 10px", fontSize: 11,
+      fontWeight: 700, letterSpacing: 1.5,
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function ReadinessProgressBar({ progress, color }) {
+  return (
+    <div style={{ height: 4, background: colors.bgButton, borderRadius: "0 0 10px 10px" }}>
+      <div style={{
+        height: "100%", width: `${Math.round(progress * 100)}%`,
+        background: color, borderRadius: "0 0 10px 10px", transition: "width 0.3s ease",
+      }} />
+    </div>
   );
 }
