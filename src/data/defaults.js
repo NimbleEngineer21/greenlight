@@ -16,7 +16,7 @@ export const GEMINI_TICKERS = {
 
 // CoinGecko IDs for non-Gemini crypto (public API, no key required; rate-limited ~30 req/min)
 export const COINGECKO_TICKERS = {
-  pol: "matic-network",
+  pol: "polygon-ecosystem-token",
 };
 
 export const DEFAULT_PLATFORMS = {
