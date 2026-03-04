@@ -67,6 +67,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   const statusColor = statusResult
     ? { green: colors.green, yellow: colors.amber, red: colors.red }[statusResult.status]
     : null;
+
   const exportDaysSince = useMemo(() => {
     if (!state.lastExportDate) return null;
     const last = new Date(state.lastExportDate + "T12:00:00");
