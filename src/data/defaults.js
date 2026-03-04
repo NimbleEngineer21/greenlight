@@ -87,6 +87,7 @@ export const DEFAULT_PURCHASE = {
   carDownPayment: 5000,
   carCostOverrides: {},
   carCostPaid: {},
+  carMaintenanceAnnual: null,  // null = derived (carPrice × 1.5%), number = user override
 };
 
 export const DEFAULT_MORTGAGE = {
@@ -116,7 +117,7 @@ export const DEFAULT_READINESS = {
   assetAppreciationRate: 0,
 };
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function createDefaultState() {
   return {

@@ -170,6 +170,22 @@ export default function PurchasePlanning({ state, updateState, prices }) {
             </div>
           )}
         </div>
+
+        {isVehicle && (
+          <div style={{ marginTop: 12 }}>
+            <div style={styles.labelCompact}>Annual Maintenance Estimate</div>
+            <input
+              type="number" step="100"
+              value={purchase.carMaintenanceAnnual ?? ""}
+              placeholder={`$${Math.round(purchase.carMaintenanceAnnual ?? (price * 0.015))} (auto)`}
+              onChange={e => updatePurchase("carMaintenanceAnnual", e.target.value === "" ? null : Number(e.target.value))}
+              style={styles.input}
+            />
+            <div style={{ fontSize: 12, color: colors.dim, marginTop: 4 }}>
+              Leave blank to use auto-derived (vehicle price × 1.5%). Used for the green readiness threshold.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Will You Take a Loan? */}

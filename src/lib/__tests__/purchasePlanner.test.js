@@ -5,6 +5,7 @@ import {
   calcDownPayment,
   calcTotalCashNeeded,
   calcLiquidationAnalysis,
+  calcPurchaseReadinessStatus,
 } from "../purchasePlanner.js";
 import { HOME_CLOSING_DEFAULTS } from "../../data/closingCosts.js";
 import { CAR_PURCHASE_DEFAULTS } from "../../data/carCosts.js";
@@ -193,5 +194,134 @@ describe("calcLiquidationAnalysis", () => {
     expect(result.assetContribution).toBe(0);
     expect(result.retirementContribution).toBe(0);
     expect(result.cashFlowContribution).toBe(0);
+  });
+});
+
+describe("calcPurchaseReadinessStatus", () => {
+  // Home: cashNeeded.total = 82k, homePrice = 350k
+  // emergencyBuffer = max(350k × 10%, 6 × 3000) = max(35k, 18k) = 35k
+  // greenThreshold = 82k + 35k = 117k, yellowThreshold = 82k
+  const homePurchase = { category: "home", homePrice: 350000, carPrice: 0, carMaintenanceAnnual: null };
+  const readiness = { reserveMonths: 6 };
+  const cashNeeded = { total: 82000 };
+  const monthlyExpenses = 3000;
+  const liq = (n) => ({ totalAvailable: n });
+
+  it("home: returns green when totalAvailable >= greenThreshold", () => {
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(120000), monthlyExpenses, projections: null,
+    });
+    expect(result.status).toBe("green");
+    expect(result.badgeLabel).toBe("READY");
+    expect(result.progress).toBe(1);
+  });
+
+  it("home: returns yellow when >= yellowThreshold but < greenThreshold", () => {
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(90000), monthlyExpenses, projections: null,
+    });
+    expect(result.status).toBe("yellow");
+    expect(result.badgeLabel).toBe("ALMOST");
+  });
+
+  it("home: returns red when < yellowThreshold", () => {
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(70000), monthlyExpenses, projections: null,
+    });
+    expect(result.status).toBe("red");
+  });
+
+  it("home: emergency buffer uses max(10% of price, reserveMonths × expenses)", () => {
+    // 350k × 10% = 35k; 6 × 3k = 18k → max = 35k
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(0), monthlyExpenses, projections: null,
+    });
+    expect(result.greenThreshold).toBe(117000);
+    expect(result.yellowThreshold).toBe(82000);
+  });
+
+  it("home: emergency buffer uses reserveMonths × expenses when larger", () => {
+    // cheapHome 100k → 10% = 10k; 6 × 3k = 18k → max = 18k
+    const cheapHome = { ...homePurchase, homePrice: 100000 };
+    const result = calcPurchaseReadinessStatus(cheapHome, readiness, {
+      cashNeeded, liquidation: liq(0), monthlyExpenses, projections: null,
+    });
+    expect(result.greenThreshold).toBe(100000); // 82k + 18k
+  });
+
+  it("vehicle: green/yellow/red with derived annualMaintenance", () => {
+    // carPrice 40k → maintenance = 40k × 0.015 = 600
+    // greenThreshold = 10k + 600 = 10600
+    const veh = { category: "vehicle", homePrice: 0, carPrice: 40000, carMaintenanceAnnual: null };
+    const result = calcPurchaseReadinessStatus(veh, readiness, {
+      cashNeeded: { total: 10000 }, liquidation: liq(10700), monthlyExpenses, projections: null,
+    });
+    expect(result.status).toBe("green");
+    expect(result.greenThreshold).toBeCloseTo(10600, 0);
+  });
+
+  it("vehicle: carMaintenanceAnnual override takes precedence over derived", () => {
+    // override = 1200 → greenThreshold = 10k + 1200 = 11200
+    const veh = { category: "vehicle", homePrice: 0, carPrice: 40000, carMaintenanceAnnual: 1200 };
+    const result = calcPurchaseReadinessStatus(veh, readiness, {
+      cashNeeded: { total: 10000 }, liquidation: liq(11300), monthlyExpenses, projections: null,
+    });
+    expect(result.greenThreshold).toBe(11200);
+    expect(result.status).toBe("green");
+  });
+
+  it("returns null when category is null", () => {
+    expect(calcPurchaseReadinessStatus(
+      { ...homePurchase, category: null }, readiness,
+      { cashNeeded, liquidation: liq(100000), monthlyExpenses, projections: null },
+    )).toBeNull();
+  });
+
+  it("returns null when homePrice is 0", () => {
+    expect(calcPurchaseReadinessStatus(
+      { ...homePurchase, homePrice: 0 }, readiness,
+      { cashNeeded, liquidation: liq(100000), monthlyExpenses, projections: null },
+    )).toBeNull();
+  });
+
+  it("returns green immediately when greenThreshold <= 0", () => {
+    // Contrived: cashNeeded.total negative makes greenThreshold ≤ 0
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded: { total: -500000 }, liquidation: liq(0), monthlyExpenses: 0, projections: null,
+    });
+    expect(result.status).toBe("green");
+    expect(result.progress).toBe(1);
+    expect(result.badgeLabel).toBe("READY");
+  });
+
+  it("progress is capped at 1.0 when over-funded", () => {
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(500000), monthlyExpenses, projections: null,
+    });
+    expect(result.progress).toBe(1);
+  });
+
+  it("badge shows ~N MOS AWAY when projections reach greenThreshold", () => {
+    // greenThreshold = 117k; starts at 80k (red), grows 15k/month — hits 117k at month 3
+    const projections = Array.from({ length: 61 }, (_, i) => ({
+      month: i, totalAvailable: 80000 + i * 15000,
+    }));
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(80000), monthlyExpenses, projections,
+    });
+    expect(result.status).toBe("red");
+    expect(result.badgeLabel).toBe("~3 MOS AWAY");
+  });
+
+  it("badge shows SHORTFALL -$Xk when projections never reach greenThreshold", () => {
+    // Always 50k — shortfall = 50k - 117k = -67k
+    const projections = Array.from({ length: 61 }, (_, i) => ({
+      month: i, totalAvailable: 50000,
+    }));
+    const result = calcPurchaseReadinessStatus(homePurchase, readiness, {
+      cashNeeded, liquidation: liq(50000), monthlyExpenses, projections,
+    });
+    expect(result.status).toBe("red");
+    expect(result.badgeLabel).toBe("SHORTFALL -$67k");
   });
 });
