@@ -152,26 +152,12 @@ export function migrateState(state) {
   // Already current — return as-is (preserves object reference)
   if (state.schemaVersion === SCHEMA_VERSION) return state;
 
-  let data = { ...state };
-
-  // v1 → v2: add carMaintenanceAnnual to purchase
-  if ((data.schemaVersion ?? 0) < 2) {
-    if (data.purchase) {
-      if (data.purchase.carMaintenanceAnnual === undefined) {
-        data.purchase = { ...data.purchase, carMaintenanceAnnual: null };
-      }
-    }
-    data.schemaVersion = 2;
+  // Future version — return as-is with warning
+  if (state.schemaVersion > SCHEMA_VERSION) {
+    console.warn(`[GreenLight] State has future schema v${state.schemaVersion} (current: ${SCHEMA_VERSION}). Returning as-is.`);
+    return state;
   }
 
-  // Safety net: if still not at current version after all migrations
-  if (data.schemaVersion !== SCHEMA_VERSION) {
-    if (data.schemaVersion > SCHEMA_VERSION) {
-      console.warn(`[GreenLight] State has future schema v${data.schemaVersion} (current: ${SCHEMA_VERSION}). Returning as-is.`);
-      return data;
-    }
-    console.error(`[GreenLight] Migration failed: expected v${SCHEMA_VERSION}, got v${data.schemaVersion}. Resetting.`);
-    return createDefaultState();
-  }
-  return data;
+  // Unknown older version — reset
+  return createDefaultState();
 }

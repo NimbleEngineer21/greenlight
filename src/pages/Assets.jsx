@@ -185,7 +185,7 @@ export default function Assets({ state, updateState, prices }) {
               <React.Fragment key={key}>
                 <span style={{ color: colors.dim, fontSize: 14 }}>{plat.name}:</span>
                 <span style={{ textAlign: "right", fontSize: 14 }}>
-                  {plat.feePerShare != null ? `$${plat.feePerShare}/sh + $${plat.flatFee} bulk` : `${(plat.feePercent * 100).toFixed(1)}%`}
+                  {[plat.feePerShare ? `$${plat.feePerShare}/sh` : null, plat.flatFee ? `$${plat.flatFee} flat` : null, plat.feePercent ? `${(plat.feePercent * 100).toFixed(1)}%` : null].filter(Boolean).join(" + ") || "Free"}
                 </span>
               </React.Fragment>
             ))}

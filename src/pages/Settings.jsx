@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
-import { createDefaultState, createSeededState } from "../data/defaults.js";
+import { createDefaultState } from "../data/defaults.js";
 import { exportState, importState } from "../lib/storage.js";
 import { getConsent, setConsent, track } from "../lib/analytics.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
@@ -51,7 +51,7 @@ export default function Settings({ state, updateState, replaceState }) {
     if (state.platforms[k]) { setPlatformKeyError(`Key "${k}" already exists.`); return; }
     updateState(prev => ({
       ...prev,
-      platforms: { ...prev.platforms, [k]: { name: newPlatformName.trim(), feePercent: 0 } },
+      platforms: { ...prev.platforms, [k]: { name: newPlatformName.trim(), feePerShare: 0, flatFee: 0, feePercent: 0 } },
     }));
     setNewPlatformKey("");
     setNewPlatformName("");
@@ -174,11 +174,6 @@ export default function Settings({ state, updateState, replaceState }) {
     }
   };
 
-  const handleSeed = () => {
-    if (confirm("Replace all data with example data? This will overwrite current data.")) {
-      replaceState(createSeededState());
-    }
-  };
 
   const labelStyle = { fontSize: 13, color: colors.dim, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 4 };
   const inputStyle = styles.input;
@@ -351,34 +346,26 @@ export default function Settings({ state, updateState, replaceState }) {
           )}
         </div>
         {Object.entries(state.platforms).map(([key, plat]) => (
-          <div key={key} className="gl-platform-row" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr auto auto", gap: 10, marginBottom: 10, alignItems: "end" }}>
+          <div key={key} className="gl-platform-row" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr auto auto", gap: 10, marginBottom: 10, alignItems: "end" }}>
             <div>
               <label style={labelStyle}>Name</label>
               <input value={plat.name} onChange={e => updatePlatform(key, "name", e.target.value)} style={inputStyle} />
             </div>
-            {plat.feePerShare != null ? (
-              <>
-                <div>
-                  <label style={labelStyle}>Fee/Share</label>
-                  <input type="number" step="0.01" value={plat.feePerShare}
-                    onChange={e => updatePlatform(key, "feePerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Flat Fee</label>
-                  <input type="number" step="1" value={plat.flatFee}
-                    onChange={e => updatePlatform(key, "flatFee", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label style={labelStyle}>Fee %</label>
-                  <input type="number" step="0.001" value={plat.feePercent}
-                    onChange={e => updatePlatform(key, "feePercent", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-                <div style={{ fontSize: 11, color: colors.dim, paddingBottom: 6 }}>{(plat.feePercent * 100).toFixed(1)}%</div>
-              </>
-            )}
+            <div>
+              <label style={labelStyle}>Fee/Share</label>
+              <input type="number" step="0.01" value={plat.feePerShare ?? 0}
+                onChange={e => updatePlatform(key, "feePerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Flat Fee</label>
+              <input type="number" step="1" value={plat.flatFee ?? 0}
+                onChange={e => updatePlatform(key, "flatFee", parseFloat(e.target.value) || 0)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Fee %</label>
+              <input type="number" step="0.001" value={plat.feePercent ?? 0}
+                onChange={e => updatePlatform(key, "feePercent", parseFloat(e.target.value) || 0)} style={inputStyle} />
+            </div>
             <div style={{ fontSize: 11, color: colors.dim, paddingBottom: 6 }}>Key: {key}</div>
             <button onClick={() => removePlatform(key)} style={{ ...btnStyle, color: colors.red, fontSize: 11, padding: "5px 10px" }}>×</button>
           </div>
@@ -491,8 +478,7 @@ export default function Settings({ state, updateState, replaceState }) {
             Import
             <input type="file" accept=".greenlight,.json" onChange={handleFileSelected} style={{ display: "none" }} />
           </label>
-          <button onClick={handleSeed} style={{ ...btnStyle, color: colors.amber }}>Seed Example Data</button>
-          <button onClick={handleReset} style={{ ...btnStyle, color: colors.red }}>Reset to Defaults</button>
+<button onClick={handleReset} style={{ ...btnStyle, color: colors.red }}>Reset to Defaults</button>
         </div>
 
         {showExportForm && (

@@ -13,9 +13,7 @@ export function calcFee(asset, grossValue, platforms) {
   if (ft === "none" || !ft) return 0;
   const plat = platforms[ft];
   if (!plat) return 0;
-  if (plat.feePerShare != null) return asset.quantity * plat.feePerShare + (plat.flatFee || 0);
-  if (plat.feePercent != null) return grossValue * plat.feePercent;
-  return 0;
+  return (plat.feePerShare || 0) * asset.quantity + (plat.flatFee || 0) + (plat.feePercent || 0) * grossValue;
 }
 
 export function paychecksBefore(sellDate, cashFlowConfig) {

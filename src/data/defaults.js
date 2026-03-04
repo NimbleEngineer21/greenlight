@@ -26,10 +26,10 @@ export const COINGECKO_TICKERS = {
 };
 
 export const DEFAULT_PLATFORMS = {
-  cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10 },
-  gem: { name: "Gemini", feePercent: 0.015 },
-  pp: { name: "Paypal", feePercent: 0.02 },
-  fidelity: { name: "Fidelity", feePercent: 0 },
+  cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10, feePercent: 0 },
+  gem: { name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 },
+  pp: { name: "Paypal", feePerShare: 0, flatFee: 0, feePercent: 0.02 },
+  fidelity: { name: "Fidelity", feePerShare: 0, flatFee: 0, feePercent: 0 },
 };
 
 export const DEFAULT_TAX_CONFIG = {
@@ -123,7 +123,7 @@ export const DEFAULT_READINESS = {
   assetAppreciationRate: 0,
 };
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 1;
 
 export function createDefaultState() {
   return {

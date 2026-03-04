@@ -9,13 +9,6 @@ describe("migrateState", () => {
     expect(migrateState(state)).toBe(state);
   });
 
-  it("migrates v0 state to current version preserving data", () => {
-    const result = migrateState({ schemaVersion: 0, purchase: { category: "home" } });
-    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(result.purchase.category).toBe("home");
-    expect(result.purchase.carMaintenanceAnnual).toBeNull();
-  });
-
   it("resets to defaults for empty/unrecognizable state", () => {
     const result = migrateState({});
     expect(result.schemaVersion).toBe(SCHEMA_VERSION);
@@ -27,30 +20,16 @@ describe("migrateState", () => {
     expect(result.dateOfBirth).toEqual({ month: "", year: "" });
   });
 
-  it("v1 state: adds carMaintenanceAnnual: null to purchase", () => {
-    const v1State = {
-      schemaVersion: 1,
-      assets: [],
-      cashAccounts: [],
-      purchase: { category: "home", homePrice: 350000 },
-    };
-    const result = migrateState(v1State);
+  it("resets unknown older versions to defaults", () => {
+    const result = migrateState({ schemaVersion: 0, assets: [], purchase: {} });
     expect(result.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(result.purchase.carMaintenanceAnnual).toBeNull();
-    expect(result.purchase.homePrice).toBe(350000);
+    expect(Array.isArray(result.assets)).toBe(true);
   });
 
-  it("v1 state: other fields preserved intact", () => {
-    const v1State = {
-      schemaVersion: 1,
-      assets: [{ name: "GME", symbol: "GME", quantity: 10 }],
-      cashAccounts: [{ name: "Checking", balance: 5000 }],
-      purchase: { category: "vehicle", carPrice: 35000 },
-    };
-    const result = migrateState(v1State);
-    expect(result.assets).toHaveLength(1);
-    expect(result.assets[0].name).toBe("GME");
-    expect(result.cashAccounts[0].balance).toBe(5000);
+  it("returns future-versioned state as-is", () => {
+    const future = { schemaVersion: SCHEMA_VERSION + 1, assets: [{ name: "X" }] };
+    const result = migrateState(future);
+    expect(result).toBe(future);
   });
 });
 
