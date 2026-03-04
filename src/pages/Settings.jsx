@@ -303,7 +303,7 @@ export default function Settings({ state, updateState, replaceState }) {
                 <span style={{ color: stateInfo?.type === "none" ? colors.green : colors.text }}>
                   {stateInfo?.type === "none" ? "No income tax" :
                    stateInfo?.type === "flat" ? `${(stateInfo.rate * 100).toFixed(1)}% flat` :
-                   `${stateInfo.brackets.map(b => `${(b.rate * 100).toFixed(1)}%`).join(" → ")} progressive`}
+                   stateInfo?.brackets ? `${stateInfo.brackets.map(b => `${(b.rate * 100).toFixed(1)}%`).join(" → ")} progressive` : "Select a state"}
                   <a href="https://taxfoundation.org/data/all/state/state-income-tax-rates-2025/" target="_blank" rel="noopener noreferrer"
                     style={{ color: colors.blue, fontSize: 9, marginLeft: 4, textDecoration: "none", opacity: 0.7 }} title="Tax Foundation 2025">
                     source
