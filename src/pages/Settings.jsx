@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { createDefaultState, createSeededState } from "../data/defaults.js";
 import { exportState, importState } from "../lib/storage.js";
+import { getConsent, setConsent } from "../lib/analytics.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { getBrackets } from "../data/taxBrackets.js";
 
@@ -587,6 +588,9 @@ export default function Settings({ state, updateState, replaceState }) {
         </div>
       </div>
 
+      {/* Analytics Preferences */}
+      <AnalyticsPreferences btnStyle={btnStyle} />
+
       {/* Disclaimer */}
       <div style={{ marginTop: 20, fontSize: 11, color: colors.dim, lineHeight: 1.7, borderTop: `1px solid ${colors.border}`, paddingTop: 16 }}>
         GreenLight provides tax estimates and financial projections for personal planning purposes only —
@@ -655,6 +659,36 @@ function StorageMonitor() {
           Storage usage is high. Consider exporting and clearing old data.
         </div>
       )}
+    </div>
+  );
+}
+
+function AnalyticsPreferences({ btnStyle }) {
+  const [consent, setLocal] = useState(() => getConsent());
+
+  const handleToggle = () => {
+    const next = consent === "accepted" ? "declined" : "accepted";
+    const ok = setConsent(next);
+    if (ok) setLocal(next);
+  };
+
+  const enabled = consent === "accepted";
+
+  return (
+    <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginTop: 14 }}>
+      <div style={{ fontSize: 11, color: colors.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, fontWeight: 600 }}>Analytics Preferences</div>
+      <div style={{ fontSize: 12, color: colors.dim, lineHeight: 1.6, marginBottom: 10 }}>
+        GreenLight uses Umami to count page views and feature usage.
+        No cookies, no personal data, no cross-site tracking.
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 12, color: enabled ? colors.green : colors.dim }}>
+          Status: <strong>{enabled ? "Enabled" : "Disabled"}</strong>
+        </span>
+        <button onClick={handleToggle} style={{ ...btnStyle, fontSize: 11 }}>
+          {enabled ? "Disable analytics" : "Enable analytics"}
+        </button>
+      </div>
     </div>
   );
 }
