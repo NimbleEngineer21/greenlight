@@ -5,7 +5,7 @@ import { parseComputerShareCSV } from "../lib/parsers/computershare.js";
 import { parseGeminiXLSX } from "../lib/parsers/gemini.js";
 import { parseFidelityCSV } from "../lib/parsers/fidelity.js";
 import { parseTransamericaCSV } from "../lib/parsers/transamerica.js";
-import { parsePayPalCSV } from "../lib/parsers/paypal.js";
+import { parsePayPalCSV, applyPayPalAnnotations } from "../lib/parsers/paypal.js";
 import { detectColumnMappings, applyColumnMapping } from "../lib/parsers/custom.js";
 import { PROVIDERS } from "../data/providers.js";
 import { fmt, fmtQty } from "../lib/calculations.js";
@@ -25,10 +25,15 @@ export default function Import({ updateState }) {
   const [columnMapping, setColumnMapping] = useState({});
   const [showMapping, setShowMapping] = useState(false);
 
+  // PayPal full-history annotation state
+  const [paypalPendingRows, setPaypalPendingRows] = useState([]);
+  const [showPaypalAnnotator, setShowPaypalAnnotator] = useState(false);
+
   const handleFiles = useCallback(async (files) => {
     setError(null);
     setParsed(null);
     setShowMapping(false);
+    setShowPaypalAnnotator(false);
     const fileList = Array.from(files);
     try {
       if (platform === "computershare") {
@@ -68,7 +73,12 @@ export default function Import({ updateState }) {
         if (!csvFile) { setError("Please upload a CSV file for PayPal."); return; }
         const text = await csvFile.text();
         const result = parsePayPalCSV(text);
-        setParsed({ platform: "PayPal", ...result });
+        if (result.needsAnnotation) {
+          setPaypalPendingRows(result.pendingRows.map(r => ({ ...r })));
+          setShowPaypalAnnotator(true);
+        } else {
+          setParsed({ platform: "PayPal", ...result });
+        }
       } else if (platform === "custom") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file."); return; }
@@ -123,6 +133,17 @@ export default function Import({ updateState }) {
     setShowMapping(false);
     setError(null);
   }, [columnMapping, customRows]);
+
+  const confirmPaypalAnnotations = useCallback(() => {
+    const { assets } = applyPayPalAnnotations(paypalPendingRows);
+    if (assets.length === 0) {
+      setError("No valid assets — fill in Symbol and Quantity for at least one row.");
+      return;
+    }
+    setParsed({ platform: "PayPal", assets, warnings: [] });
+    setShowPaypalAnnotator(false);
+    setError(null);
+  }, [paypalPendingRows]);
 
   const confirmImport = useCallback(() => {
     if (!parsed) return;
@@ -221,7 +242,7 @@ export default function Import({ updateState }) {
         {PLATFORM_OPTIONS.map(opt => (
           <label key={opt.value} style={{ fontSize: 12, color: platform === opt.value ? colors.blue : colors.dim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
             <input type="radio" name="platform" value={opt.value} checked={platform === opt.value}
-              onChange={() => { setPlatform(opt.value); setParsed(null); setError(null); setShowMapping(false); }}
+              onChange={() => { setPlatform(opt.value); setParsed(null); setError(null); setShowMapping(false); setShowPaypalAnnotator(false); setPaypalPendingRows([]); }}
               style={{ accentColor: colors.blue }}
             />
             {opt.label}
@@ -278,6 +299,22 @@ export default function Import({ updateState }) {
         />
       )}
 
+      {/* PayPal full-history annotation UI */}
+      {showPaypalAnnotator && (
+        <PayPalAnnotator
+          rows={paypalPendingRows}
+          onRowChange={(i, field, value) =>
+            setPaypalPendingRows(prev => {
+              const next = [...prev];
+              next[i] = { ...next[i], [field]: value };
+              return next;
+            })
+          }
+          onConfirm={confirmPaypalAnnotations}
+          onCancel={() => { setShowPaypalAnnotator(false); setPaypalPendingRows([]); }}
+        />
+      )}
+
       {/* Preview */}
       {parsed && (
         <ParsedPreview
@@ -287,6 +324,86 @@ export default function Import({ updateState }) {
           btnStyle={btnStyle}
         />
       )}
+    </div>
+  );
+}
+
+function PayPalAnnotator({ rows, onRowChange, onConfirm, onCancel }) {
+  const canConfirm = rows.some(r => r.symbol.trim() && parseFloat(r.quantity) > 0);
+
+  return (
+    <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
+        Annotate PayPal Crypto Transactions
+      </div>
+      <div style={{ fontSize: 11, color: colors.dim, marginBottom: 12 }}>
+        PayPal&apos;s full transaction history doesn&apos;t include which cryptocurrency was purchased or how many units.
+        Fill in <strong style={{ color: colors.text }}>Symbol</strong> and <strong style={{ color: colors.text }}>Units</strong> for each row — refer to the PayPal app or your confirmation emails.
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${colors.border}` }}>
+              {["Date", "USD Paid", "Fees", "Tx ID", "Symbol *", "Units *"].map(h => (
+                <th key={h} style={{
+                  padding: "5px 8px", textAlign: ["USD Paid", "Fees"].includes(h) ? "right" : "left",
+                  color: colors.dim, fontSize: 10, textTransform: "uppercase", letterSpacing: 1,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid #0e1620`, background: i % 2 ? colors.bgAlt : "transparent" }}>
+                <td style={{ padding: "5px 8px", color: colors.dim }}>{row.date}</td>
+                <td style={{ padding: "5px 8px", textAlign: "right", color: colors.blue }}>{fmt(row.amountUSD)}</td>
+                <td style={{ padding: "5px 8px", textAlign: "right", color: colors.dim }}>{fmt(row.fees)}</td>
+                <td style={{ padding: "5px 8px", color: colors.dim, fontSize: 10 }}>{row.txId}</td>
+                <td style={{ padding: "3px 8px" }}>
+                  <input
+                    value={row.symbol}
+                    onChange={e => onRowChange(i, "symbol", e.target.value.toUpperCase())}
+                    placeholder="e.g. ETH"
+                    style={{
+                      width: 64, background: colors.bgButton, border: `1px solid ${row.symbol.trim() ? colors.blue : colors.border}`,
+                      borderRadius: 4, padding: "4px 6px", fontSize: 12, color: colors.text, textTransform: "uppercase",
+                    }}
+                  />
+                </td>
+                <td style={{ padding: "3px 8px" }}>
+                  <input
+                    value={row.quantity}
+                    onChange={e => onRowChange(i, "quantity", e.target.value)}
+                    placeholder="0.000000"
+                    style={{
+                      width: 96, background: colors.bgButton, border: `1px solid ${parseFloat(row.quantity) > 0 ? colors.blue : colors.border}`,
+                      borderRadius: 4, padding: "4px 6px", fontSize: 12, color: colors.text,
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          onClick={onConfirm}
+          disabled={!canConfirm}
+          style={{
+            ...styles.btn, padding: "7px 16px", fontSize: 13,
+            color: canConfirm ? colors.green : colors.dim,
+            opacity: canConfirm ? 1 : 0.5,
+          }}
+        >
+          Confirm Annotations
+        </button>
+        <button onClick={onCancel} style={{ ...styles.btn, padding: "7px 14px", fontSize: 13 }}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
