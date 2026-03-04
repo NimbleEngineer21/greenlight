@@ -219,7 +219,7 @@ export function calcSummary(state, prices) {
 }
 
 export function calcSavingsRate(monthlyIncome, monthlyExpenses) {
-  if (!monthlyIncome) return null;
+  if (monthlyIncome <= 0) return null;
   return (monthlyIncome - monthlyExpenses) / monthlyIncome;
 }
 

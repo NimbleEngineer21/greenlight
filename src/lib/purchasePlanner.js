@@ -93,7 +93,9 @@ export function calcTotalCashNeeded(downPayment, unpaidClosingCosts, pointsCost 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
 function fmtShortfall(n) {
-  return `SHORTFALL -$${Math.round(Math.abs(n) / 1000)}k`;
+  const abs = Math.abs(n);
+  if (abs < 1000) return `SHORTFALL -$${Math.round(abs)}`;
+  return `SHORTFALL -$${Math.round(abs / 1000)}k`;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -152,8 +154,9 @@ export function calcPurchaseReadinessStatus(purchase, readiness, {
   if (category === "home" && homePrice <= 0) return null;
   if (category === "vehicle" && carPrice <= 0) return null;
 
-  const totalAvailable = liquidation?.totalAvailable ?? 0;
-  const cashTotal = cashNeeded?.total ?? 0;
+  if (!cashNeeded || !liquidation) return null;
+  const totalAvailable = liquidation.totalAvailable;
+  const cashTotal = cashNeeded.total;
 
   let greenThreshold, yellowThreshold;
   if (category === "home") {

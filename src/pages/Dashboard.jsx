@@ -5,9 +5,15 @@ import { calcHomeCosts, calcCarCosts, calcDownPayment, calcTotalCashNeeded, calc
 import { calcPointsCost } from "../lib/mortgageCalc.js";
 import { projectCashPosition, calcReadinessDate } from "../lib/readiness.js";
 import { RETIREMENT_ACCOUNT_TYPES } from "../data/defaults.js";
-import { colors } from "../theme.js";
+import { colors, SIGNAL_COLORS } from "../theme.js";
 
 const NOW_MS = Date.now(); // module-level: stable across renders, day-precision is fine
+
+function savingsRateColor(rate) {
+  if (rate >= 0.2) return colors.green;
+  if (rate >= 0.1) return colors.amber;
+  return colors.red;
+}
 const labelSt = { fontSize: 13, color: colors.dim, textTransform: "uppercase", letterSpacing: 1.5 };
 const ctaBtnStyle = {
   background: colors.bgButton, border: `1px solid ${colors.borderAccent}`, color: colors.blue,
@@ -65,7 +71,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   );
 
   const statusColor = statusResult
-    ? { green: colors.green, yellow: colors.amber, red: colors.red }[statusResult.status]
+    ? (SIGNAL_COLORS[statusResult.status] || colors.dim)
     : null;
 
   const exportDaysSince = useMemo(() => {
@@ -96,7 +102,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
               {!statusResult && savingsRate !== null && (
                 <StatusPill
                   label={`SAVING ${Math.round(savingsRate * 100)}%`}
-                  color={savingsRate >= 0.2 ? colors.green : savingsRate >= 0.1 ? colors.amber : colors.red}
+                  color={savingsRateColor(savingsRate)}
                 />
               )}
             </div>
@@ -242,7 +248,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
       </div>
 
       {/* Readiness Widget — only when planning is active */}
-      {state.purchase?.category && <ReadinessWidget state={state} projections={projections} statusResult={statusResult} />}
+      {state.purchase?.category && <ReadinessWidget state={state} projections={projections} statusResult={statusResult} cashNeeded={statusCashNeeded} monthlyExpenses={monthly.monthlyExpenses} />}
 
       {/* Planning CTA */}
       {!state.purchase?.category && (
@@ -283,46 +289,23 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
   );
 }
 
-function ReadinessWidget({ state, projections, statusResult }) {
+function ReadinessWidget({ state, projections, statusResult, cashNeeded, monthlyExpenses }) {
   const purchase = state.purchase || {};
-  const mortgage = state.mortgage || {};
   const isHome = purchase.category === "home";
   const readiness = state.readiness || {};
 
-  const price = isHome ? (purchase.homePrice || 0) : (purchase.carPrice || 0);
-  const dp = useMemo(() => {
-    if (isHome) return calcDownPayment(price, purchase.downPaymentPercent || 20);
-    return { amount: purchase.carDownPayment || 0 };
-  }, [isHome, price, purchase.downPaymentPercent, purchase.carDownPayment]);
-
-  const costs = useMemo(() => {
-    if (isHome) return calcHomeCosts(price, purchase.closingCostOverrides, purchase.closingCostPaid);
-    return calcCarCosts(price, purchase.carCostOverrides, purchase.carCostPaid);
-  }, [isHome, price, purchase.closingCostOverrides, purchase.closingCostPaid, purchase.carCostOverrides, purchase.carCostPaid]);
-
-  const pointsCost = useMemo(
-    () => isHome ? calcPointsCost(price - dp.amount, mortgage.pointsBought || 0, mortgage.pointCostPercent || 1) : 0,
-    [isHome, price, dp.amount, mortgage.pointsBought, mortgage.pointCostPercent],
-  );
-
-  const cashNeeded = useMemo(
-    () => calcTotalCashNeeded(dp.amount, costs.unpaidTotal, pointsCost),
-    [dp.amount, costs.unpaidTotal, pointsCost],
-  );
-
-  const monthly = useMemo(() => calcMonthlySavings(state.cashFlow), [state.cashFlow]);
-  const reserveAmount = (readiness.reserveMonths || 6) * monthly.monthlyExpenses;
-  const targetTotal = cashNeeded.total + reserveAmount;
+  const reserveAmount = (readiness.reserveMonths || 6) * monthlyExpenses;
+  const targetTotal = (cashNeeded?.total || 0) + reserveAmount;
 
   const readinessDate = useMemo(
-    () => calcReadinessDate(projections ?? [], targetTotal),
+    () => projections ? calcReadinessDate(projections, targetTotal) : null,
     [projections, targetTotal],
   );
 
   const isReady = readinessDate && readinessDate.month === 0;
   const label = isHome ? "Home purchase" : "Car purchase";
   const signalColor = statusResult
-    ? { green: colors.green, yellow: colors.amber, red: colors.red }[statusResult.status]
+    ? (SIGNAL_COLORS[statusResult.status] || colors.dim)
     : isReady ? colors.green
     : readinessDate && readinessDate.month <= 12 ? colors.amber
     : colors.red;
