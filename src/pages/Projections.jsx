@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { calcCashFlow, fmt, fmtDate } from "../lib/calculations.js";
+import { uuid } from "../data/defaults.js";
 
 export default function Projections({ state, updateState }) {
   const sellDate = state.sellDate || "2026-04-17";
@@ -13,7 +14,7 @@ export default function Projections({ state, updateState }) {
   };
 
   const addExpense = () => {
-    const exp = { id: crypto.randomUUID(), name: "", amount: 0, frequency: "monthly", dayOfMonth: 1, startDate: sellDate };
+    const exp = { id: uuid(), name: "", amount: 0, frequency: "monthly", dayOfMonth: 1, startDate: sellDate };
     updateState(prev => ({ ...prev, cashFlow: { ...prev.cashFlow, expenses: [...(prev.cashFlow.expenses || []), exp] } }));
   };
 
@@ -35,7 +36,7 @@ export default function Projections({ state, updateState }) {
   };
 
   const addObligation = () => {
-    const ob = { id: crypto.randomUUID(), name: "", amount: 0, dueDate: sellDate, isPaid: false };
+    const ob = { id: uuid(), name: "", amount: 0, dueDate: sellDate, isPaid: false };
     updateState(prev => ({ ...prev, cashFlow: { ...prev.cashFlow, oneTimeObligations: [...(prev.cashFlow.oneTimeObligations || []), ob] } }));
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { calcSummary, calcRetirementNet, fmt, fmtQty } from "../lib/calculations.js";
-import { RETIREMENT_ACCOUNT_TYPES } from "../data/defaults.js";
+import { RETIREMENT_ACCOUNT_TYPES, uuid } from "../data/defaults.js";
 
 const EMPTY_ASSET = {
   platform: "", name: "", symbol: "", quantity: 0, costBasis: 0,
@@ -24,7 +24,7 @@ export default function Assets({ state, updateState, prices }) {
 
   // Capital sales handlers
   const addCapitalSale = () => {
-    const sale = { id: crypto.randomUUID(), name: "", expectedAmount: 0, costBasis: 0, expectedDate: "", isLongTerm: true };
+    const sale = { id: uuid(), name: "", expectedAmount: 0, costBasis: 0, expectedDate: "", isLongTerm: true };
     updateState(prev => ({ ...prev, capitalSales: [...(prev.capitalSales || []), sale] }));
   };
   const updateCapitalSale = (id, key, value) => {
@@ -39,7 +39,7 @@ export default function Assets({ state, updateState, prices }) {
     updateState(prev => ({ ...prev, retirement: { ...prev.retirement, [key]: value } }));
   };
   const addRetirementAccount = () => {
-    const acct = { id: crypto.randomUUID(), accountType: "pretax_401k", platform: "", balance: 0, contributions: 0 };
+    const acct = { id: uuid(), accountType: "pretax_401k", platform: "", balance: 0, contributions: 0 };
     updateState(prev => ({ ...prev, retirement: { ...prev.retirement, accounts: [...(prev.retirement.accounts || []), acct] } }));
   };
   const updateRetirementAccount = (id, key, value) => {
@@ -76,7 +76,7 @@ export default function Assets({ state, updateState, prices }) {
 
   const save = () => {
     if (editing === "new") {
-      const newAsset = { ...form, id: crypto.randomUUID() };
+      const newAsset = { ...form, id: uuid() };
       updateState(prev => ({ ...prev, assets: [...(prev.assets || []), newAsset] }));
     } else {
       updateState(prev => ({

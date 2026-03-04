@@ -8,6 +8,7 @@ import { parseTransamericaCSV } from "../lib/parsers/transamerica.js";
 import { parsePayPalCSV, applyPayPalAnnotations } from "../lib/parsers/paypal.js";
 import { detectColumnMappings, applyColumnMapping } from "../lib/parsers/custom.js";
 import { PROVIDERS } from "../data/providers.js";
+import { uuid } from "../data/defaults.js";
 import { fmt, fmtQty } from "../lib/calculations.js";
 
 const PLATFORM_OPTIONS = Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }));
@@ -196,7 +197,7 @@ export default function Import({ updateState }) {
           );
           const newAccounts = parsed.retirementAccounts.map(a => ({
             ...a,
-            id: crypto.randomUUID(),
+            id: uuid(),
           }));
           next = {
             ...next,
@@ -215,7 +216,7 @@ export default function Import({ updateState }) {
           const withoutOld = (prev.assets || []).filter(a => !existingIds.has(a.id));
           const newAssets = parsed.assets.map(a => ({
             ...a,
-            id: crypto.randomUUID(),
+            id: uuid(),
             importSource,
           }));
           next = { ...next, assets: [...withoutOld, ...newAssets] };
@@ -227,7 +228,7 @@ export default function Import({ updateState }) {
             c => c.importSource !== importSource,
           );
           const newCash = parsed.cashPositions.map(c => ({
-            id: crypto.randomUUID(),
+            id: uuid(),
             platform: c.accountName || parsed.platform,
             name: c.symbol,
             balance: c.value,

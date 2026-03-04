@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { fmt } from "../lib/calculations.js";
+import { uuid } from "../data/defaults.js";
 import { calcDownPayment } from "../lib/purchasePlanner.js";
 import { compareLenders } from "../lib/mortgageCalc.js";
 import { detectJumbo } from "../lib/loanLimits.js";
@@ -68,7 +69,7 @@ export default function LenderCompare({ state, updateState }) {
 
   const save = () => {
     if (editing === "new") {
-      const newLender = { ...form, id: crypto.randomUUID() };
+      const newLender = { ...form, id: uuid() };
       updateState(prev => ({ ...prev, lenders: [...(prev.lenders || []), newLender] }));
       track("loan_compare", { action: "add" });
     } else {

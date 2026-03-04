@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { colors, fonts, styles } from "../theme.js";
-import { DEFAULT_TAX_CONFIG } from "../data/defaults.js";
+import { DEFAULT_TAX_CONFIG, uuid } from "../data/defaults.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { loanTypeForCategory } from "../lib/purchasePlanner.js";
 import { track } from "../lib/analytics.js";
@@ -177,7 +177,7 @@ export default function SetupWizard({ updateState }) {
                 setHasExpenses(val);
                 if (!val) goNext();
                 else if (draft.expenses.length === 0)
-                  setDraft(prev => ({ ...prev, expenses: [{ id: crypto.randomUUID(), name: "", amount: 0, frequency: "monthly", startDate: "" }] }));
+                  setDraft(prev => ({ ...prev, expenses: [{ id: uuid(), name: "", amount: 0, frequency: "monthly", startDate: "" }] }));
               }}
               question="Do you have recurring expenses to track?"
               hint="Mortgage, rent, utilities, subscriptions, etc."
@@ -192,7 +192,7 @@ export default function SetupWizard({ updateState }) {
                 setHasObligations(val);
                 if (!val) goNext();
                 else if (draft.oneTimeObligations.length === 0)
-                  setDraft(prev => ({ ...prev, oneTimeObligations: [{ id: crypto.randomUUID(), name: "", amount: 0, dueDate: "", isPaid: false }] }));
+                  setDraft(prev => ({ ...prev, oneTimeObligations: [{ id: uuid(), name: "", amount: 0, dueDate: "", isPaid: false }] }));
               }}
               question="Do you have upcoming one-time cash events?"
               hint="One-time payments, tax bills, or assets you plan to sell before your target date."
@@ -303,7 +303,7 @@ function CashStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle, remove
   const add = () => {
     setDraft(prev => ({
       ...prev,
-      cashAccounts: [...prev.cashAccounts, { id: crypto.randomUUID(), platform: "", name: "", balance: 0 }],
+      cashAccounts: [...prev.cashAccounts, { id: uuid(), platform: "", name: "", balance: 0 }],
     }));
   };
   const remove = (id) => {
@@ -356,7 +356,7 @@ function CashStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle, remove
 function ExpensesStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle, removeBtnStyle }) {
   const [lastAddedId, setLastAddedId] = useState(() => draft.expenses.length === 1 ? draft.expenses[0].id : null);
   const add = () => {
-    const newId = crypto.randomUUID();
+    const newId = uuid();
     setDraft(prev => ({
       ...prev,
       expenses: [...prev.expenses, { id: newId, name: "", amount: 0, frequency: "monthly", startDate: "" }],
@@ -421,7 +421,7 @@ function ObligationsStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle,
   const [lastSaleId, setLastSaleId] = useState(null);
 
   const addOb = () => {
-    const newId = crypto.randomUUID();
+    const newId = uuid();
     setDraft(prev => ({
       ...prev,
       oneTimeObligations: [...prev.oneTimeObligations, { id: newId, name: "", amount: 0, dueDate: "", isPaid: false }],
@@ -439,7 +439,7 @@ function ObligationsStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle,
   };
 
   const addSale = () => {
-    const newId = crypto.randomUUID();
+    const newId = uuid();
     setDraft(prev => ({
       ...prev,
       capitalSales: [...prev.capitalSales, { id: newId, name: "", expectedAmount: 0, costBasis: 0, expectedDate: "", isLongTerm: true }],

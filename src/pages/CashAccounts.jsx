@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { colors, styles } from "../theme.js";
 import { fmt } from "../lib/calculations.js";
+import { uuid } from "../data/defaults.js";
 
 export default function CashAccounts({ state, updateState }) {
   const [editing, setEditing] = useState(null);
@@ -21,7 +22,7 @@ export default function CashAccounts({ state, updateState }) {
 
   const save = () => {
     if (editing === "new") {
-      const newAccount = { ...form, id: crypto.randomUUID() };
+      const newAccount = { ...form, id: uuid() };
       updateState(prev => ({ ...prev, cashAccounts: [...(prev.cashAccounts || []), newAccount] }));
     } else {
       updateState(prev => ({
