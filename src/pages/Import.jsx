@@ -13,7 +13,7 @@ import { fmt, fmtQty } from "../lib/calculations.js";
 const PLATFORM_OPTIONS = Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }));
 
 export default function Import({ updateState }) {
-  const [platform, setPlatform] = useState("computershare");
+  const [platform, setPlatform] = useState("");
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -29,14 +29,25 @@ export default function Import({ updateState }) {
   const [paypalPendingRows, setPaypalPendingRows] = useState([]);
   const [showPaypalAnnotator, setShowPaypalAnnotator] = useState(false);
 
-  const handleFiles = useCallback(async (files) => {
+  // Platform picker state (shown when files dropped without a platform selected)
+  const [pendingFiles, setPendingFiles] = useState(null);
+  const [showPlatformPicker, setShowPlatformPicker] = useState(false);
+
+  const handleFiles = useCallback(async (files, platformToUse = platform) => {
     setError(null);
     setParsed(null);
     setShowMapping(false);
     setShowPaypalAnnotator(false);
+
+    if (!platformToUse) {
+      setPendingFiles(files);
+      setShowPlatformPicker(true);
+      return;
+    }
+
     const fileList = Array.from(files);
     try {
-      if (platform === "computershare") {
+      if (platformToUse === "computershare") {
         const csvFiles = fileList.filter(f => f.name.endsWith(".csv"));
         if (csvFiles.length === 0) { setError("Please upload CSV files for ComputerShare."); return; }
         const results = [];
@@ -46,19 +57,19 @@ export default function Import({ updateState }) {
           results.push(...lots);
         }
         setParsed({ platform: "ComputerShare", lots: results, assets: aggregateLots(results) });
-      } else if (platform === "gemini") {
+      } else if (platformToUse === "gemini") {
         const xlsxFile = fileList.find(f => f.name.endsWith(".xlsx") || f.name.endsWith(".xls"));
         if (!xlsxFile) { setError("Please upload an XLSX file for Gemini."); return; }
         const buffer = await xlsxFile.arrayBuffer();
         const result = parseGeminiXLSX(buffer);
         setParsed({ platform: "Gemini", ...result });
-      } else if (platform === "fidelity") {
+      } else if (platformToUse === "fidelity") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file for Fidelity."); return; }
         const text = await csvFile.text();
         const result = parseFidelityCSV(text);
         setParsed({ platform: "Fidelity", ...result });
-      } else if (platform === "transamerica") {
+      } else if (platformToUse === "transamerica") {
         const csvFiles = fileList.filter(f => f.name.endsWith(".csv"));
         if (csvFiles.length === 0) { setError("Please upload CSV files for Transamerica."); return; }
         const namedFiles = [];
@@ -68,7 +79,7 @@ export default function Import({ updateState }) {
         }
         const result = parseTransamericaCSV(namedFiles);
         setParsed({ platform: "Transamerica", ...result });
-      } else if (platform === "paypal") {
+      } else if (platformToUse === "paypal") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file for PayPal."); return; }
         const text = await csvFile.text();
@@ -79,7 +90,7 @@ export default function Import({ updateState }) {
         } else {
           setParsed({ platform: "PayPal", ...result });
         }
-      } else if (platform === "custom") {
+      } else if (platformToUse === "custom") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file."); return; }
         const text = await csvFile.text();
@@ -97,11 +108,11 @@ export default function Import({ updateState }) {
         setShowMapping(true);
         if (parseWarnings.length > 0) setError(parseWarnings.join(" · "));
       } else {
-        setError(`Import for "${platform}" is not implemented.`);
+        setError(`Import for "${platformToUse}" is not implemented.`);
       }
     } catch (e) {
       console.error("[GreenLight] Import parse failed:", e);
-      const hint = PROVIDERS[platform]?.hint ?? "";
+      const hint = PROVIDERS[platformToUse]?.hint ?? "";
       setError(`Failed to parse the file. ${hint} Error: ${e.message}`);
     }
   }, [platform]);
@@ -133,6 +144,15 @@ export default function Import({ updateState }) {
     setShowMapping(false);
     setError(null);
   }, [columnMapping, customRows]);
+
+  const confirmPlatformAndProcess = useCallback((selectedPlatform) => {
+    setPlatform(selectedPlatform);
+    setShowPlatformPicker(false);
+    if (pendingFiles) {
+      handleFiles(pendingFiles, selectedPlatform);
+      setPendingFiles(null);
+    }
+  }, [pendingFiles, handleFiles]);
 
   const confirmPaypalAnnotations = useCallback(() => {
     const { assets } = applyPayPalAnnotations(paypalPendingRows);
@@ -223,7 +243,7 @@ export default function Import({ updateState }) {
     }
   }, [parsed, updateState]);
 
-  const provider = PROVIDERS[platform];
+  const provider = PROVIDERS[platform] ?? null;
   const btnStyle = { ...styles.btn, padding: "8px 18px", fontSize: 15 };
 
   return (
@@ -237,17 +257,30 @@ export default function Import({ updateState }) {
       )}
 
       {/* Platform selector */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <label style={{ fontSize: 11, color: colors.dim }}>PLATFORM:</label>
-        {PLATFORM_OPTIONS.map(opt => (
-          <label key={opt.value} style={{ fontSize: 12, color: platform === opt.value ? colors.blue : colors.dim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-            <input type="radio" name="platform" value={opt.value} checked={platform === opt.value}
-              onChange={() => { setPlatform(opt.value); setParsed(null); setError(null); setShowMapping(false); setShowPaypalAnnotator(false); setPaypalPendingRows([]); }}
-              style={{ accentColor: colors.blue }}
-            />
-            {opt.label}
-          </label>
-        ))}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
+        <label style={{ fontSize: 11, color: colors.dim, flexShrink: 0 }}>PLATFORM:</label>
+        <select
+          value={platform}
+          onChange={e => {
+            setPlatform(e.target.value);
+            setParsed(null); setError(null); setShowMapping(false);
+            setShowPaypalAnnotator(false); setPaypalPendingRows([]);
+            setShowPlatformPicker(false); setPendingFiles(null);
+          }}
+          style={{
+            background: colors.bgButton, border: `1px solid ${colors.border}`,
+            borderRadius: 4, padding: "5px 10px", fontSize: 12,
+            color: platform ? colors.text : colors.dim,
+          }}
+        >
+          <option value="">— select platform —</option>
+          {PLATFORM_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {provider && (
+          <span style={{ fontSize: 11, color: colors.dim }}>{provider.description}</span>
+        )}
       </div>
 
       {/* Drop zone */}
@@ -269,13 +302,13 @@ export default function Import({ updateState }) {
           Drop {platform === "gemini" ? "XLSX" : "CSV"} files here or click to browse
         </div>
         <div style={{ fontSize: 11, color: colors.dim, marginTop: 4 }}>
-          {provider?.hint}
+          {provider ? provider.hint : "Select a platform above, or drop a file to be prompted"}
         </div>
         <input
           id="file-input"
           type="file"
           multiple={provider?.multiple ?? false}
-          accept={provider?.acceptAttr ?? ".csv"}
+          accept={provider?.acceptAttr ?? ".csv,.xlsx"}
           onChange={onFileInput}
           style={{ display: "none" }}
         />
@@ -285,6 +318,14 @@ export default function Import({ updateState }) {
         <div style={{ background: "#1a0000", border: `1px solid ${colors.red}`, borderRadius: 6, padding: 10, marginBottom: 16, fontSize: 11, color: colors.red }}>
           {error}
         </div>
+      )}
+
+      {/* Platform picker — shown when files are dropped without a platform selected */}
+      {showPlatformPicker && (
+        <PlatformPicker
+          onConfirm={confirmPlatformAndProcess}
+          onCancel={() => { setShowPlatformPicker(false); setPendingFiles(null); }}
+        />
       )}
 
       {/* Custom CSV column mapping UI */}
@@ -324,6 +365,52 @@ export default function Import({ updateState }) {
           btnStyle={btnStyle}
         />
       )}
+    </div>
+  );
+}
+
+function PlatformPicker({ onConfirm, onCancel }) {
+  const [selected, setSelected] = useState("custom");
+  const provider = PROVIDERS[selected];
+
+  return (
+    <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
+        Which platform is this file from?
+      </div>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <select
+          size={PLATFORM_OPTIONS.length}
+          value={selected}
+          onChange={e => setSelected(e.target.value)}
+          style={{
+            background: colors.bgButton, border: `1px solid ${colors.border}`,
+            borderRadius: 4, fontSize: 12, color: colors.text,
+            minWidth: 220, flexShrink: 0,
+          }}
+        >
+          {PLATFORM_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {provider && (
+          <div style={{ fontSize: 11, color: colors.dim, paddingTop: 4 }}>
+            <div style={{ color: colors.text, marginBottom: 4 }}>{provider.description}</div>
+            <div>{provider.hint}</div>
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          onClick={() => onConfirm(selected)}
+          style={{ ...styles.btn, padding: "7px 16px", fontSize: 13, color: colors.green }}
+        >
+          Continue
+        </button>
+        <button onClick={onCancel} style={{ ...styles.btn, padding: "7px 14px", fontSize: 13 }}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
