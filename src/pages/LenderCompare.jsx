@@ -4,6 +4,7 @@ import { fmt } from "../lib/calculations.js";
 import { calcDownPayment } from "../lib/purchasePlanner.js";
 import { compareLenders } from "../lib/mortgageCalc.js";
 import { detectJumbo } from "../lib/loanLimits.js";
+import { track } from "../lib/analytics.js";
 import LenderCard from "../components/LenderCard.jsx";
 
 const EMPTY_LENDER = { name: "", ratePercent: 6.5, points: 0, closingCredits: 0, originationFee: 0 };
@@ -69,6 +70,7 @@ export default function LenderCompare({ state, updateState }) {
     if (editing === "new") {
       const newLender = { ...form, id: crypto.randomUUID() };
       updateState(prev => ({ ...prev, lenders: [...(prev.lenders || []), newLender] }));
+      track("loan_compare", { action: "add" });
     } else {
       updateState(prev => ({
         ...prev,

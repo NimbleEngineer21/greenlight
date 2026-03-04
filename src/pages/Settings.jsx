@@ -141,8 +141,10 @@ export default function Settings({ state, updateState, replaceState }) {
       const imported = await importState(text);
       replaceState(imported);
       setImportSuccess(true);
+      track("import_complete", { encrypted: false });
     } catch (err) {
       setImportError(err.message);
+      track("import_fail", { encrypted: false });
     }
   };
 
@@ -154,10 +156,12 @@ export default function Settings({ state, updateState, replaceState }) {
       const imported = await importState(pendingImportText, importPassword);
       replaceState(imported);
       setImportSuccess(true);
+      track("import_complete", { encrypted: true });
       setPendingImportText(null);
       setImportPassword("");
     } catch (err) {
       setImportPasswordError(err.message);
+      track("import_fail", { encrypted: true });
     } finally {
       setImportInProgress(false);
     }
@@ -166,6 +170,7 @@ export default function Settings({ state, updateState, replaceState }) {
   const handleReset = () => {
     if (confirm("Reset all data to defaults? This cannot be undone.")) {
       replaceState(createDefaultState());
+      track("settings_reset");
     }
   };
 
