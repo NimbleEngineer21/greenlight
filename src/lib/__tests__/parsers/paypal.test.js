@@ -170,6 +170,23 @@ describe("parsePayPalCSV — inline fixtures", () => {
     const { assets } = parsePayPalCSV(csv);
     expect(assets).toHaveLength(1);
   });
+
+  it("returns empty assets and a warning for non-string input", () => {
+    const { assets, warnings } = parsePayPalCSV(null);
+    expect(assets).toEqual([]);
+    expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it("does not produce NaN cost basis after a double oversell", () => {
+    const csv = buildCSV([
+      { crypto: "BTC", amount: "1",  amountUSD: "-40000", date: "1/1/25" },
+      { crypto: "BTC", amount: "-1", amountUSD: "45000",  date: "6/1/25" },  // exhausts position
+      { crypto: "BTC", amount: "-1", amountUSD: "20000",  date: "7/1/25" },  // second sell after zero
+    ]);
+    const { assets } = parsePayPalCSV(csv);
+    // Position fully sold — no asset remains, and no NaN
+    expect(assets).toHaveLength(0);
+  });
 });
 
 // ─── Full-history format tests ────────────────────────────────────────────────
@@ -231,6 +248,24 @@ describe("parsePayPalCSV — full-history format (needsAnnotation)", () => {
     const { pendingRows } = parsePayPalCSV(csv);
 
     expect(pendingRows).toHaveLength(1);
+  });
+
+  it("excludes sell rows (positive Amount) from pendingRows", () => {
+    const csv = buildFullHistoryCSV([
+      { type: "Cryptocurrency", status: "Completed", amount: "-100.00" }, // buy
+      { type: "Cryptocurrency", status: "Completed", amount: "150.00" },  // sell
+    ]);
+    const { pendingRows } = parsePayPalCSV(csv);
+
+    expect(pendingRows).toHaveLength(1);
+    expect(pendingRows[0].amountUSD).toBeCloseTo(100, 2);
+  });
+
+  it("returns empty string for an unparseable date", () => {
+    const csv = buildFullHistoryCSV([{ date: "not-a-date", amount: "-100.00" }]);
+    const { pendingRows } = parsePayPalCSV(csv);
+
+    expect(pendingRows[0].date).toBe("");
   });
 });
 
@@ -300,6 +335,29 @@ describe("applyPayPalAnnotations", () => {
     expect(assets[0].platform).toBe("PayPal");
     expect(assets[0].holdingType).toBe("crypto");
     expect(assets[0].feeType).toBe("none");
+  });
+
+  it("returns empty assets for empty input", () => {
+    const { assets } = applyPayPalAnnotations([]);
+    expect(assets).toEqual([]);
+  });
+
+  it("strips commas from comma-formatted quantity strings", () => {
+    const rows = [{ date: "2025-10-10", amountUSD: 30000, symbol: "BTC", quantity: "1,234.5" }];
+    const { assets } = applyPayPalAnnotations(rows);
+
+    expect(assets[0].quantity).toBeCloseTo(1234.5, 6);
+  });
+
+  it("skips rows with whitespace-only symbol", () => {
+    const rows = [
+      { date: "2025-10-10", amountUSD: 100, symbol: "   ", quantity: "0.1" },
+      { date: "2025-10-10", amountUSD: 200, symbol: "ETH", quantity: "0.5" },
+    ];
+    const { assets } = applyPayPalAnnotations(rows);
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].symbol).toBe("ETH");
   });
 });
 

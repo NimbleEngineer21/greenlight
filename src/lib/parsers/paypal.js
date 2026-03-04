@@ -20,6 +20,7 @@ import Papa from "papaparse";
  * informational only.
  */
 export function parsePayPalCSV(text) {
+  if (typeof text !== "string") return { assets: [], warnings: ["Input must be a string."] };
   const cleaned = text.replace(/^\uFEFF/, "");
   const { data: rows, errors } = Papa.parse(cleaned, {
     header: true,
@@ -54,7 +55,7 @@ export function applyPayPalAnnotations(annotatedRows) {
 
   for (const row of annotatedRows) {
     const symbol = (row.symbol || "").trim().toUpperCase();
-    const quantity = parseFloat(row.quantity) || 0;
+    const quantity = Number.parseFloat(String(row.quantity).replaceAll(",", "")) || 0;
     if (!symbol || quantity <= 0) continue;
 
     if (!holdings[symbol]) {
@@ -99,9 +100,9 @@ function aggregateCryptoRows(rows) {
     const symbol = (row["Cryptocurrency"] || "").trim();
     if (!symbol) continue;
 
-    const amountUSD = parseFloat((row["Amount (USD)"] || "0").replace(/,/g, ""));
-    const cryptoAmt = parseFloat((row["Amount"] || "0").replace(/,/g, ""));
-    if (!isFinite(amountUSD) || !isFinite(cryptoAmt)) continue;
+    const amountUSD = Number.parseFloat((row["Amount (USD)"] || "0").replaceAll(",", ""));
+    const cryptoAmt = Number.parseFloat((row["Amount"] || "0").replaceAll(",", ""));
+    if (!Number.isFinite(amountUSD) || !Number.isFinite(cryptoAmt)) continue;
 
     const dateStr = parsePayPalDate(row["Date"] || "");
 
@@ -120,8 +121,8 @@ function aggregateCryptoRows(rows) {
       if (h.quantity > 0) {
         const remaining = Math.max(0, h.quantity - sold);
         h.costBasis = h.costBasis * (remaining / h.quantity);
+        h.quantity = remaining;
       }
-      h.quantity = Math.max(0, h.quantity - sold);
     }
   }
 
@@ -147,10 +148,14 @@ function aggregateCryptoRows(rows) {
  */
 function extractPendingRows(rows) {
   return rows
-    .filter(r => r["Type"] === "Cryptocurrency" && r["Status"] === "Completed")
+    .filter(r => {
+      if (r["Type"] !== "Cryptocurrency" || r["Status"] !== "Completed") return false;
+      const amt = Number.parseFloat((r["Amount"] || "0").replaceAll(",", ""));
+      return amt < 0; // buys only — PayPal records crypto purchases as negative USD
+    })
     .map(r => {
-      const amountUSD = parseFloat((r["Amount"] || "0").replace(/,/g, ""));
-      const fees = parseFloat((r["Fees"] || "0").replace(/,/g, ""));
+      const amountUSD = Number.parseFloat((r["Amount"] || "0").replaceAll(",", ""));
+      const fees = Number.parseFloat((r["Fees"] || "0").replaceAll(",", ""));
       return {
         date: parsePayPalDate(r["Date"] || ""),
         amountUSD: Math.abs(amountUSD),    // total USD paid (fees already included)
@@ -168,9 +173,10 @@ function extractPendingRows(rows) {
  * Handles both 2-digit years (M/D/YY) and 4-digit years (MM/DD/YYYY).
  */
 function parsePayPalDate(str) {
-  const parts = str.trim().replace(/"/g, "").split("/");
-  if (parts.length !== 3) return str;
+  const parts = str.trim().replaceAll('"', "").split("/");
+  if (parts.length !== 3) return "";
   const [m, d, y] = parts;
-  const year = y.length === 2 ? 2000 + parseInt(y, 10) : parseInt(y, 10);
+  const year = y.length === 2 ? 2000 + Number.parseInt(y, 10) : Number.parseInt(y, 10);
+  if (!Number.isFinite(year)) return "";
   return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }

@@ -27,6 +27,7 @@ export default function Import({ updateState }) {
 
   // PayPal full-history annotation state
   const [paypalPendingRows, setPaypalPendingRows] = useState([]);
+  const [paypalInitialWarnings, setPaypalInitialWarnings] = useState([]);
   const [showPaypalAnnotator, setShowPaypalAnnotator] = useState(false);
 
   // Platform picker state (shown when files dropped without a platform selected)
@@ -86,6 +87,7 @@ export default function Import({ updateState }) {
         const result = parsePayPalCSV(text);
         if (result.needsAnnotation) {
           setPaypalPendingRows(result.pendingRows.map(r => ({ ...r })));
+          setPaypalInitialWarnings(result.warnings);
           setShowPaypalAnnotator(true);
         } else {
           setParsed({ platform: "PayPal", ...result });
@@ -155,15 +157,20 @@ export default function Import({ updateState }) {
   }, [pendingFiles, handleFiles]);
 
   const confirmPaypalAnnotations = useCallback(() => {
-    const { assets } = applyPayPalAnnotations(paypalPendingRows);
-    if (assets.length === 0) {
-      setError("No valid assets — fill in Symbol and Quantity for at least one row.");
-      return;
+    try {
+      const { assets } = applyPayPalAnnotations(paypalPendingRows);
+      if (assets.length === 0) {
+        setError("No valid assets — fill in Symbol and Quantity for at least one row.");
+        return;
+      }
+      setParsed({ platform: "PayPal", assets, warnings: paypalInitialWarnings });
+      setShowPaypalAnnotator(false);
+      setError(null);
+    } catch (e) {
+      console.error("[GreenLight] PayPal annotation failed:", e);
+      setError(`Failed to process annotations. Error: ${e.message}`);
     }
-    setParsed({ platform: "PayPal", assets, warnings: [] });
-    setShowPaypalAnnotator(false);
-    setError(null);
-  }, [paypalPendingRows]);
+  }, [paypalPendingRows, paypalInitialWarnings]);
 
   const confirmImport = useCallback(() => {
     if (!parsed) return;
@@ -264,7 +271,7 @@ export default function Import({ updateState }) {
           onChange={e => {
             setPlatform(e.target.value);
             setParsed(null); setError(null); setShowMapping(false);
-            setShowPaypalAnnotator(false); setPaypalPendingRows([]);
+            setShowPaypalAnnotator(false); setPaypalPendingRows([]); setPaypalInitialWarnings([]);
             setShowPlatformPicker(false); setPendingFiles(null);
           }}
           style={{
@@ -299,7 +306,7 @@ export default function Import({ updateState }) {
       >
         <div style={{ fontSize: 24, color: colors.dim, marginBottom: 8 }}>↑</div>
         <div style={{ fontSize: 13, color: colors.text }}>
-          Drop {platform === "gemini" ? "XLSX" : "CSV"} files here or click to browse
+          Drop {platform === "gemini" ? "XLSX" : platform ? "CSV" : "CSV or XLSX"} files here or click to browse
         </div>
         <div style={{ fontSize: 11, color: colors.dim, marginTop: 4 }}>
           {provider ? provider.hint : "Select a platform above, or drop a file to be prompted"}
@@ -352,7 +359,7 @@ export default function Import({ updateState }) {
             })
           }
           onConfirm={confirmPaypalAnnotations}
-          onCancel={() => { setShowPaypalAnnotator(false); setPaypalPendingRows([]); }}
+          onCancel={() => { setShowPaypalAnnotator(false); setPaypalPendingRows([]); setPaypalInitialWarnings([]); }}
         />
       )}
 
@@ -416,7 +423,7 @@ function PlatformPicker({ onConfirm, onCancel }) {
 }
 
 function PayPalAnnotator({ rows, onRowChange, onConfirm, onCancel }) {
-  const canConfirm = rows.some(r => r.symbol.trim() && parseFloat(r.quantity) > 0);
+  const canConfirm = rows.some(r => r.symbol.trim() && parseFloat(String(r.quantity).replace(/,/g, "")) > 0);
 
   return (
     <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 16 }}>
