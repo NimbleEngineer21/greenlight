@@ -3,6 +3,7 @@ import { colors, fonts, styles } from "../theme.js";
 import { DEFAULT_TAX_CONFIG } from "../data/defaults.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { loanTypeForCategory } from "../lib/purchasePlanner.js";
+import { track } from "../lib/analytics.js";
 
 const PLACEHOLDER_INCOMES = ["1,850.00", "2,475.00", "3,200.00", "4,100.00", "5,250.00", "5,800.00"];
 const PLACEHOLDER_BANKS = ["National Bank", "First Credit Union", "City Savings", "Valley Federal", "Metro Bank"];
@@ -96,10 +97,12 @@ export default function SetupWizard({ updateState }) {
         ? { ...prev.purchase, category: cat, loanType: loanTypeForCategory(cat), takingLoan: true }
         : prev.purchase,
     }));
+    track("wizard_complete", { planning_mode: cat || "none" });
   };
 
   const handleSkip = () => {
     updateState(prev => ({ ...prev, setupComplete: true, lastExportDate: new Date().toISOString().slice(0, 10) }));
+    track("wizard_skip", { at_step: step });
   };
 
   // Skip optional steps when user answers "No"

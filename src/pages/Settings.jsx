@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { createDefaultState, createSeededState } from "../data/defaults.js";
 import { exportState, importState } from "../lib/storage.js";
-import { getConsent, setConsent } from "../lib/analytics.js";
+import { getConsent, setConsent, track } from "../lib/analytics.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { getBrackets } from "../data/taxBrackets.js";
 
@@ -85,6 +85,7 @@ export default function Settings({ state, updateState, replaceState }) {
     try {
       await exportState(state);
       updateState(prev => ({ ...prev, lastExportDate: new Date().toISOString().slice(0, 10) }));
+      track("settings_export", { encrypted: false });
     } catch (err) {
       setExportError(err.message);
     }
@@ -98,6 +99,7 @@ export default function Settings({ state, updateState, replaceState }) {
     try {
       await exportState(state, exportPassword);
       updateState(prev => ({ ...prev, lastExportDate: new Date().toISOString().slice(0, 10) }));
+      track("settings_export", { encrypted: true });
       setShowExportForm(false);
       setExportPassword("");
       setExportPasswordConfirm("");
