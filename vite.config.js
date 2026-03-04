@@ -45,8 +45,11 @@ function devDataFilesPlugin() {
 }
 
 // https://vite.dev/config/
+const plugins = [react(), devDataFilesPlugin()];
+if (!process.env.VITEST) plugins.push(cloudflare());
+
 export default defineConfig({
-  plugins: [react(), devDataFilesPlugin(), cloudflare()],
+  plugins,
   server: {
     proxy: {
       '/api/yahoo': {
