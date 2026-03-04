@@ -10,5 +10,18 @@
   },
   "compatibility_flags": [
     "nodejs_compat"
-  ]
+  ],
+
+  // Production environment — deployed only on git tags
+  // Attaches the custom domain gotthegreenlight.com to a separate
+  // worker named "greenlight-production".
+  "env": {
+    "production": {
+      "name": "greenlight-production",
+      "routes": [
+        { "pattern": "gotthegreenlight.com", "custom_domain": true },
+        { "pattern": "www.gotthegreenlight.com", "custom_domain": true }
+      ]
+    }
+  }
 }

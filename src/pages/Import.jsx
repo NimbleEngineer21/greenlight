@@ -5,6 +5,7 @@ import { parseComputerShareCSV } from "../lib/parsers/computershare.js";
 import { parseGeminiXLSX } from "../lib/parsers/gemini.js";
 import { parseFidelityCSV } from "../lib/parsers/fidelity.js";
 import { parseTransamericaCSV } from "../lib/parsers/transamerica.js";
+import { parsePayPalCSV, applyPayPalAnnotations } from "../lib/parsers/paypal.js";
 import { detectColumnMappings, applyColumnMapping } from "../lib/parsers/custom.js";
 import { PROVIDERS } from "../data/providers.js";
 import { fmt, fmtQty } from "../lib/calculations.js";
@@ -12,7 +13,7 @@ import { fmt, fmtQty } from "../lib/calculations.js";
 const PLATFORM_OPTIONS = Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }));
 
 export default function Import({ updateState }) {
-  const [platform, setPlatform] = useState("computershare");
+  const [platform, setPlatform] = useState("");
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -24,13 +25,30 @@ export default function Import({ updateState }) {
   const [columnMapping, setColumnMapping] = useState({});
   const [showMapping, setShowMapping] = useState(false);
 
-  const handleFiles = useCallback(async (files) => {
+  // PayPal full-history annotation state
+  const [paypalPendingRows, setPaypalPendingRows] = useState([]);
+  const [paypalInitialWarnings, setPaypalInitialWarnings] = useState([]);
+  const [showPaypalAnnotator, setShowPaypalAnnotator] = useState(false);
+
+  // Platform picker state (shown when files dropped without a platform selected)
+  const [pendingFiles, setPendingFiles] = useState(null);
+  const [showPlatformPicker, setShowPlatformPicker] = useState(false);
+
+  const handleFiles = useCallback(async (files, platformToUse = platform) => {
     setError(null);
     setParsed(null);
     setShowMapping(false);
+    setShowPaypalAnnotator(false);
+
+    if (!platformToUse) {
+      setPendingFiles(files);
+      setShowPlatformPicker(true);
+      return;
+    }
+
     const fileList = Array.from(files);
     try {
-      if (platform === "computershare") {
+      if (platformToUse === "computershare") {
         const csvFiles = fileList.filter(f => f.name.endsWith(".csv"));
         if (csvFiles.length === 0) { setError("Please upload CSV files for ComputerShare."); return; }
         const results = [];
@@ -40,19 +58,19 @@ export default function Import({ updateState }) {
           results.push(...lots);
         }
         setParsed({ platform: "ComputerShare", lots: results, assets: aggregateLots(results) });
-      } else if (platform === "gemini") {
+      } else if (platformToUse === "gemini") {
         const xlsxFile = fileList.find(f => f.name.endsWith(".xlsx") || f.name.endsWith(".xls"));
         if (!xlsxFile) { setError("Please upload an XLSX file for Gemini."); return; }
         const buffer = await xlsxFile.arrayBuffer();
         const result = parseGeminiXLSX(buffer);
         setParsed({ platform: "Gemini", ...result });
-      } else if (platform === "fidelity") {
+      } else if (platformToUse === "fidelity") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file for Fidelity."); return; }
         const text = await csvFile.text();
         const result = parseFidelityCSV(text);
         setParsed({ platform: "Fidelity", ...result });
-      } else if (platform === "transamerica") {
+      } else if (platformToUse === "transamerica") {
         const csvFiles = fileList.filter(f => f.name.endsWith(".csv"));
         if (csvFiles.length === 0) { setError("Please upload CSV files for Transamerica."); return; }
         const namedFiles = [];
@@ -62,7 +80,19 @@ export default function Import({ updateState }) {
         }
         const result = parseTransamericaCSV(namedFiles);
         setParsed({ platform: "Transamerica", ...result });
-      } else if (platform === "custom") {
+      } else if (platformToUse === "paypal") {
+        const csvFile = fileList.find(f => f.name.endsWith(".csv"));
+        if (!csvFile) { setError("Please upload a CSV file for PayPal."); return; }
+        const text = await csvFile.text();
+        const result = parsePayPalCSV(text);
+        if (result.needsAnnotation) {
+          setPaypalPendingRows(result.pendingRows.map(r => ({ ...r })));
+          setPaypalInitialWarnings(result.warnings);
+          setShowPaypalAnnotator(true);
+        } else {
+          setParsed({ platform: "PayPal", ...result });
+        }
+      } else if (platformToUse === "custom") {
         const csvFile = fileList.find(f => f.name.endsWith(".csv"));
         if (!csvFile) { setError("Please upload a CSV file."); return; }
         const text = await csvFile.text();
@@ -80,11 +110,11 @@ export default function Import({ updateState }) {
         setShowMapping(true);
         if (parseWarnings.length > 0) setError(parseWarnings.join(" · "));
       } else {
-        setError(`Import for "${platform}" is not implemented.`);
+        setError(`Import for "${platformToUse}" is not implemented.`);
       }
     } catch (e) {
       console.error("[GreenLight] Import parse failed:", e);
-      const hint = PROVIDERS[platform]?.hint ?? "";
+      const hint = PROVIDERS[platformToUse]?.hint ?? "";
       setError(`Failed to parse the file. ${hint} Error: ${e.message}`);
     }
   }, [platform]);
@@ -116,6 +146,31 @@ export default function Import({ updateState }) {
     setShowMapping(false);
     setError(null);
   }, [columnMapping, customRows]);
+
+  const confirmPlatformAndProcess = useCallback((selectedPlatform) => {
+    setPlatform(selectedPlatform);
+    setShowPlatformPicker(false);
+    if (pendingFiles) {
+      handleFiles(pendingFiles, selectedPlatform);
+      setPendingFiles(null);
+    }
+  }, [pendingFiles, handleFiles]);
+
+  const confirmPaypalAnnotations = useCallback(() => {
+    try {
+      const { assets } = applyPayPalAnnotations(paypalPendingRows);
+      if (assets.length === 0) {
+        setError("No valid assets — fill in Symbol and Quantity for at least one row.");
+        return;
+      }
+      setParsed({ platform: "PayPal", assets, warnings: paypalInitialWarnings });
+      setShowPaypalAnnotator(false);
+      setError(null);
+    } catch (e) {
+      console.error("[GreenLight] PayPal annotation failed:", e);
+      setError(`Failed to process annotations. Error: ${e.message}`);
+    }
+  }, [paypalPendingRows, paypalInitialWarnings]);
 
   const confirmImport = useCallback(() => {
     if (!parsed) return;
@@ -195,7 +250,7 @@ export default function Import({ updateState }) {
     }
   }, [parsed, updateState]);
 
-  const provider = PROVIDERS[platform];
+  const provider = PROVIDERS[platform] ?? null;
   const btnStyle = { ...styles.btn, padding: "8px 18px", fontSize: 15 };
 
   return (
@@ -209,17 +264,30 @@ export default function Import({ updateState }) {
       )}
 
       {/* Platform selector */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <label style={{ fontSize: 11, color: colors.dim }}>PLATFORM:</label>
-        {PLATFORM_OPTIONS.map(opt => (
-          <label key={opt.value} style={{ fontSize: 12, color: platform === opt.value ? colors.blue : colors.dim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-            <input type="radio" name="platform" value={opt.value} checked={platform === opt.value}
-              onChange={() => { setPlatform(opt.value); setParsed(null); setError(null); setShowMapping(false); }}
-              style={{ accentColor: colors.blue }}
-            />
-            {opt.label}
-          </label>
-        ))}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
+        <label style={{ fontSize: 11, color: colors.dim, flexShrink: 0 }}>PLATFORM:</label>
+        <select
+          value={platform}
+          onChange={e => {
+            setPlatform(e.target.value);
+            setParsed(null); setError(null); setShowMapping(false);
+            setShowPaypalAnnotator(false); setPaypalPendingRows([]); setPaypalInitialWarnings([]);
+            setShowPlatformPicker(false); setPendingFiles(null);
+          }}
+          style={{
+            background: colors.bgButton, border: `1px solid ${colors.border}`,
+            borderRadius: 4, padding: "5px 10px", fontSize: 12,
+            color: platform ? colors.text : colors.dim,
+          }}
+        >
+          <option value="">— select platform —</option>
+          {PLATFORM_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {provider && (
+          <span style={{ fontSize: 11, color: colors.dim }}>{provider.description}</span>
+        )}
       </div>
 
       {/* Drop zone */}
@@ -238,16 +306,16 @@ export default function Import({ updateState }) {
       >
         <div style={{ fontSize: 24, color: colors.dim, marginBottom: 8 }}>↑</div>
         <div style={{ fontSize: 13, color: colors.text }}>
-          Drop {platform === "gemini" ? "XLSX" : "CSV"} files here or click to browse
+          Drop {platform === "gemini" ? "XLSX" : platform ? "CSV" : "CSV or XLSX"} files here or click to browse
         </div>
         <div style={{ fontSize: 11, color: colors.dim, marginTop: 4 }}>
-          {provider?.hint}
+          {provider ? provider.hint : "Select a platform above, or drop a file to be prompted"}
         </div>
         <input
           id="file-input"
           type="file"
           multiple={provider?.multiple ?? false}
-          accept={provider?.acceptAttr ?? ".csv"}
+          accept={provider?.acceptAttr ?? ".csv,.xlsx"}
           onChange={onFileInput}
           style={{ display: "none" }}
         />
@@ -257,6 +325,14 @@ export default function Import({ updateState }) {
         <div style={{ background: "#1a0000", border: `1px solid ${colors.red}`, borderRadius: 6, padding: 10, marginBottom: 16, fontSize: 11, color: colors.red }}>
           {error}
         </div>
+      )}
+
+      {/* Platform picker — shown when files are dropped without a platform selected */}
+      {showPlatformPicker && (
+        <PlatformPicker
+          onConfirm={confirmPlatformAndProcess}
+          onCancel={() => { setShowPlatformPicker(false); setPendingFiles(null); }}
+        />
       )}
 
       {/* Custom CSV column mapping UI */}
@@ -271,6 +347,22 @@ export default function Import({ updateState }) {
         />
       )}
 
+      {/* PayPal full-history annotation UI */}
+      {showPaypalAnnotator && (
+        <PayPalAnnotator
+          rows={paypalPendingRows}
+          onRowChange={(i, field, value) =>
+            setPaypalPendingRows(prev => {
+              const next = [...prev];
+              next[i] = { ...next[i], [field]: value };
+              return next;
+            })
+          }
+          onConfirm={confirmPaypalAnnotations}
+          onCancel={() => { setShowPaypalAnnotator(false); setPaypalPendingRows([]); setPaypalInitialWarnings([]); }}
+        />
+      )}
+
       {/* Preview */}
       {parsed && (
         <ParsedPreview
@@ -280,6 +372,132 @@ export default function Import({ updateState }) {
           btnStyle={btnStyle}
         />
       )}
+    </div>
+  );
+}
+
+function PlatformPicker({ onConfirm, onCancel }) {
+  const [selected, setSelected] = useState("custom");
+  const provider = PROVIDERS[selected];
+
+  return (
+    <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
+        Which platform is this file from?
+      </div>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <select
+          size={PLATFORM_OPTIONS.length}
+          value={selected}
+          onChange={e => setSelected(e.target.value)}
+          style={{
+            background: colors.bgButton, border: `1px solid ${colors.border}`,
+            borderRadius: 4, fontSize: 12, color: colors.text,
+            minWidth: 220, flexShrink: 0,
+          }}
+        >
+          {PLATFORM_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {provider && (
+          <div style={{ fontSize: 11, color: colors.dim, paddingTop: 4 }}>
+            <div style={{ color: colors.text, marginBottom: 4 }}>{provider.description}</div>
+            <div>{provider.hint}</div>
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          onClick={() => onConfirm(selected)}
+          style={{ ...styles.btn, padding: "7px 16px", fontSize: 13, color: colors.green }}
+        >
+          Continue
+        </button>
+        <button onClick={onCancel} style={{ ...styles.btn, padding: "7px 14px", fontSize: 13 }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PayPalAnnotator({ rows, onRowChange, onConfirm, onCancel }) {
+  const canConfirm = rows.some(r => r.symbol.trim() && parseFloat(String(r.quantity).replace(/,/g, "")) > 0);
+
+  return (
+    <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
+        Annotate PayPal Crypto Transactions
+      </div>
+      <div style={{ fontSize: 11, color: colors.dim, marginBottom: 12 }}>
+        PayPal&apos;s full transaction history doesn&apos;t include which cryptocurrency was purchased or how many units.
+        Fill in <strong style={{ color: colors.text }}>Symbol</strong> and <strong style={{ color: colors.text }}>Units</strong> for each row — refer to the PayPal app or your confirmation emails.
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${colors.border}` }}>
+              {["Date", "USD Paid", "Fees", "Tx ID", "Symbol *", "Units *"].map(h => (
+                <th key={h} style={{
+                  padding: "5px 8px", textAlign: ["USD Paid", "Fees"].includes(h) ? "right" : "left",
+                  color: colors.dim, fontSize: 10, textTransform: "uppercase", letterSpacing: 1,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid #0e1620`, background: i % 2 ? colors.bgAlt : "transparent" }}>
+                <td style={{ padding: "5px 8px", color: colors.dim }}>{row.date}</td>
+                <td style={{ padding: "5px 8px", textAlign: "right", color: colors.blue }}>{fmt(row.amountUSD)}</td>
+                <td style={{ padding: "5px 8px", textAlign: "right", color: colors.dim }}>{fmt(row.fees)}</td>
+                <td style={{ padding: "5px 8px", color: colors.dim, fontSize: 10 }}>{row.txId}</td>
+                <td style={{ padding: "3px 8px" }}>
+                  <input
+                    value={row.symbol}
+                    onChange={e => onRowChange(i, "symbol", e.target.value.toUpperCase())}
+                    placeholder="e.g. ETH"
+                    style={{
+                      width: 64, background: colors.bgButton, border: `1px solid ${row.symbol.trim() ? colors.blue : colors.border}`,
+                      borderRadius: 4, padding: "4px 6px", fontSize: 12, color: colors.text, textTransform: "uppercase",
+                    }}
+                  />
+                </td>
+                <td style={{ padding: "3px 8px" }}>
+                  <input
+                    value={row.quantity}
+                    onChange={e => onRowChange(i, "quantity", e.target.value)}
+                    placeholder="0.000000"
+                    style={{
+                      width: 96, background: colors.bgButton, border: `1px solid ${parseFloat(row.quantity) > 0 ? colors.blue : colors.border}`,
+                      borderRadius: 4, padding: "4px 6px", fontSize: 12, color: colors.text,
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          onClick={onConfirm}
+          disabled={!canConfirm}
+          style={{
+            ...styles.btn, padding: "7px 16px", fontSize: 13,
+            color: canConfirm ? colors.green : colors.dim,
+            opacity: canConfirm ? 1 : 0.5,
+          }}
+        >
+          Confirm Annotations
+        </button>
+        <button onClick={onCancel} style={{ ...styles.btn, padding: "7px 14px", fontSize: 13 }}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
