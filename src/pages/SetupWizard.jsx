@@ -3,6 +3,7 @@ import { colors, fonts, styles } from "../theme.js";
 import { DEFAULT_TAX_CONFIG } from "../data/defaults.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { loanTypeForCategory } from "../lib/purchasePlanner.js";
+import { track } from "../lib/analytics.js";
 
 const PLACEHOLDER_INCOMES = ["1,850.00", "2,475.00", "3,200.00", "4,100.00", "5,250.00", "5,800.00"];
 const PLACEHOLDER_BANKS = ["National Bank", "First Credit Union", "City Savings", "Valley Federal", "Metro Bank"];
@@ -14,6 +15,7 @@ function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 const STATE_CODES = ["", ...Object.keys(STATE_TAXES).sort()];
 
 const STEPS = [
+  { key: "welcome", label: "Welcome" },
   { key: "income", label: "Income" },
   { key: "cash", label: "Cash & Savings" },
   { key: "expenses", label: "Expenses" },
@@ -95,10 +97,12 @@ export default function SetupWizard({ updateState }) {
         ? { ...prev.purchase, category: cat, loanType: loanTypeForCategory(cat), takingLoan: true }
         : prev.purchase,
     }));
+    track("wizard_complete", { planning_mode: cat || "none" });
   };
 
   const handleSkip = () => {
     updateState(prev => ({ ...prev, setupComplete: true, lastExportDate: new Date().toISOString().slice(0, 10) }));
+    track("wizard_skip", { at_step: step });
   };
 
   // Skip optional steps when user answers "No"
@@ -159,6 +163,7 @@ export default function SetupWizard({ updateState }) {
 
         {/* Step content */}
         <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, padding: 20, marginBottom: 16 }}>
+          {currentStep.key === "welcome" && <WelcomeStep />}
           {currentStep.key === "income" && (
             <IncomeStep draft={draft} update={update} inputStyle={inputStyle} labelStyle={labelStyle} placeholders={placeholders} />
           )}
@@ -642,6 +647,36 @@ function DataWarningStep() {
       <div style={{ maxWidth: 480, margin: "14px auto 0", fontSize: 11, color: colors.dim, lineHeight: 1.6 }}>
         GreenLight calculates tax estimates and financial projections for personal planning purposes only —
         not tax or legal advice. Always consult a qualified professional before making significant financial decisions.
+      </div>
+    </div>
+  );
+}
+
+function WelcomeStep() {
+  return (
+    <div style={{ textAlign: "center", padding: "16px 0" }}>
+      <div style={{
+        display: "inline-block", width: 12, height: 12, borderRadius: "50%",
+        background: colors.green, boxShadow: `0 0 10px ${colors.green}`,
+        marginBottom: 14,
+      }} />
+      <div style={{ fontSize: 16, fontWeight: 700, color: colors.text, marginBottom: 10 }}>
+        Free, open-source financial planning.
+      </div>
+      <div style={{ fontSize: 13, color: colors.dim, lineHeight: 1.7, maxWidth: 460, margin: "0 auto" }}>
+        All your data lives in your browser — nothing is sent to a server. No account needed.
+      </div>
+      <div style={{
+        background: colors.bgInput, border: `1px solid ${colors.border}`,
+        borderRadius: 6, padding: 14, marginTop: 16, maxWidth: 460, margin: "16px auto 0",
+        fontSize: 12, color: colors.text, lineHeight: 1.6,
+      }}>
+        Want full control?{" "}
+        <a href="https://github.com/NimbleEngineer21/greenlight" target="_blank" rel="noopener noreferrer"
+          style={{ color: colors.blue, textDecoration: "underline" }}>
+          Run it locally
+        </a>{" "}
+        from the source code — or self-host for your household.
       </div>
     </div>
   );

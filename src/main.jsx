@@ -3,7 +3,10 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import App from "./App.jsx";
+import { initAnalytics } from "./lib/analytics.js";
 import "./index.css";
+
+initAnalytics();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

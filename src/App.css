@@ -733,6 +733,10 @@
    Mobile: <640px | Tablet: 640-1024px | Desktop: >1024px
    ============================================================ */
 
+.gl-kofi:hover {
+  opacity: 0.8 !important;
+}
+
 @media (max-width: 640px) {
   .gl-layout {
     flex-direction: column !important;
@@ -754,6 +758,10 @@
 
   .gl-sidebar-brand {
     display: none;
+  }
+
+  .gl-kofi {
+    display: none !important;
   }
 
   .gl-nav-link {

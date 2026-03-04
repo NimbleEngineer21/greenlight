@@ -3,6 +3,7 @@ import { useStorage } from "./hooks/useStorage.js";
 import { usePrices } from "./hooks/usePrices.js";
 import "./App.css";
 import Layout from "./components/Layout.jsx";
+import ConsentBanner from "./components/ConsentBanner.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Assets from "./pages/Assets.jsx";
 import Import from "./pages/Import.jsx";
@@ -17,11 +18,26 @@ import Readiness from "./pages/Readiness.jsx";
 
 export default function App() {
   const [state, updateState, replaceState] = useStorage();
-  const { prices, lastFetch, fetching, fetchErr, setPrice, refresh } = usePrices(state.priceOverrides);
 
   if (!state.setupComplete) {
-    return <SetupWizard updateState={updateState} />;
+    return (
+      <>
+        <SetupWizard updateState={updateState} />
+        <ConsentBanner />
+      </>
+    );
   }
+
+  return (
+    <>
+      <AppShell state={state} updateState={updateState} replaceState={replaceState} />
+      <ConsentBanner />
+    </>
+  );
+}
+
+function AppShell({ state, updateState, replaceState }) {
+  const { prices, lastFetch, fetching, fetchErr, setPrice, refresh } = usePrices(state.priceOverrides);
 
   const sellDate = state.sellDate || new Date().toISOString().slice(0, 10);
   const onSellDateChange = (val) => updateState(prev => ({ ...prev, sellDate: val }));

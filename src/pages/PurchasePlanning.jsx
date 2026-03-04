@@ -5,6 +5,7 @@ import { fmt, calcSummary } from "../lib/calculations.js";
 import { calcHomeCosts, calcCarCosts, calcDownPayment, calcTotalCashNeeded, calcLiquidationAnalysis, loanTypeForCategory } from "../lib/purchasePlanner.js";
 import { calcPointsCost } from "../lib/mortgageCalc.js";
 import { detectJumbo } from "../lib/loanLimits.js";
+import { track } from "../lib/analytics.js";
 
 const makeUpdater = (updateState, section) => (key, val) => {
   updateState(prev => ({ ...prev, [section]: { ...prev[section], [key]: val } }));
@@ -24,6 +25,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
       ...prev,
       purchase: { ...prev.purchase, category: cat, loanType: loanTypeForCategory(cat), takingLoan: true },
     }));
+    track("planning_mode_switch", { category: cat });
   };
 
   // Price + down payment

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <style>
+    .bg { fill: #e8ecf0; }
+    .dot { fill: #16a34a; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0c1219; }
+      .dot { fill: #22c55e; }
+    }
+  </style>
+  <circle class="bg" cx="16" cy="16" r="16"/>
+  <circle class="dot" cx="16" cy="16" r="6" filter="url(#glow)"/>
+</svg>

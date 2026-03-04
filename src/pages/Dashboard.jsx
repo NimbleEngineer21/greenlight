@@ -6,6 +6,7 @@ import { calcPointsCost } from "../lib/mortgageCalc.js";
 import { projectCashPosition, calcReadinessDate } from "../lib/readiness.js";
 import { RETIREMENT_ACCOUNT_TYPES } from "../data/defaults.js";
 import { colors, SIGNAL_COLORS } from "../theme.js";
+import { track } from "../lib/analytics.js";
 
 const NOW_MS = Date.now(); // module-level: stable across renders, day-precision is fine
 
@@ -87,6 +88,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
         ...prev,
         purchase: { ...prev.purchase, category, loanType: loanTypeForCategory(category), takingLoan: true },
       }));
+      track("planning_activate", { category });
       navigate("/purchase");
     }
   };
