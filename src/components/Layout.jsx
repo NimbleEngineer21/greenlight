@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { colors, fonts } from "../theme.js";
+import { track } from "../lib/analytics.js";
 import DevImportBanner from "./DevImportBanner.jsx";
 
 const CORE_NAV = [
@@ -97,6 +98,16 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
 
         {planningNav && <div className="gl-nav-divider" />}
         {BOTTOM_NAV.map(item => <NavItem key={item.to} item={item} />)}
+
+        {/* Ko-fi tip */}
+        <a href="https://ko-fi.com/N4N31VDFAX" target="_blank" rel="noopener noreferrer"
+          className="gl-kofi"
+          onClick={() => track("kofi_click")}
+          aria-label="Support GreenLight on Ko-fi"
+          style={{ display: "block", padding: "8px 12px", marginTop: 4, opacity: 0.5, transition: "opacity 0.2s" }}>
+          <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee"
+            width={120} height={28} decoding="async" style={{ border: 0 }} />
+        </a>
       </nav>
 
       {/* Main content */}
