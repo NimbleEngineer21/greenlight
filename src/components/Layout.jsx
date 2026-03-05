@@ -48,7 +48,7 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
     : null;
 
   return (
-    <div className="gl-layout" style={{ fontFamily: fonts.mono, background: colors.bg, color: colors.text, minHeight: "100vh", display: "flex" }}>
+    <div className="gl-layout" style={{ fontFamily: fonts.mono, background: colors.bg, color: colors.text, height: "100vh", display: "flex", overflow: "hidden" }}>
 
       {/* Sidebar */}
       <nav className="gl-sidebar">
@@ -111,7 +111,7 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
       </nav>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
 
         {/* Top bar */}
         <header className="gl-header">

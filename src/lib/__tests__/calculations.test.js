@@ -25,8 +25,9 @@ describe("isLongTerm", () => {
 
 describe("calcFee", () => {
   const platforms = {
-    cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10 },
-    gem: { name: "Gemini", feePercent: 0.015 },
+    cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10, feePercent: 0 },
+    gem: { name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 },
+    combo: { name: "Combo", feePerShare: 0.05, flatFee: 5, feePercent: 0.01 },
   };
 
   it("calculates per-share fee + flat fee", () => {
@@ -37,6 +38,17 @@ describe("calcFee", () => {
   it("calculates percentage fee", () => {
     const asset = { quantity: 1, feeType: "gem" };
     expect(calcFee(asset, 10000, platforms)).toBe(150);
+  });
+
+  it("calculates combined per-share + flat + percentage fee", () => {
+    const asset = { quantity: 200, feeType: "combo" };
+    // 200 * 0.05 + 5 + 0.01 * 8000 = 10 + 5 + 80 = 95
+    expect(calcFee(asset, 8000, platforms)).toBe(95);
+  });
+
+  it("handles undefined quantity without NaN", () => {
+    const asset = { feeType: "cs" };
+    expect(calcFee(asset, 5000, platforms)).toBe(10); // 0 * 0.10 + 10 + 0 * 5000
   });
 
   it("returns 0 for feeType none", () => {
@@ -179,7 +191,7 @@ describe("calcSummary", () => {
       ltcgRate: 0.15, stcgRate: 0.24, niitRate: 0.038, niitApplies: false,
       standardDeduction: 31400,
     },
-    platforms: { gem: { name: "Gemini", feePercent: 0.015 } },
+    platforms: { gem: { name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 } },
     cashFlow: {
       paycheckAmount: 5000, firstPayDate: "2026-03-06", paycheckFrequency: "biweekly",
       expenses: [], oneTimeObligations: [],

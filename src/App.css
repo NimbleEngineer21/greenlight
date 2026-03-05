@@ -531,13 +531,14 @@
 
 .gl-sidebar {
   width: 220px;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--gl-card);
   border-right: 1px solid var(--gl-border);
   padding: 20px 0;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow-y: auto;
 }
 
 .gl-sidebar-brand {
@@ -700,6 +701,7 @@
 
 .gl-main {
   flex: 1;
+  min-height: 0;
   padding: 26px 42px;
   overflow-y: auto;
 }
@@ -744,6 +746,7 @@
 
   .gl-sidebar {
     width: 100% !important;
+    height: auto !important;
     min-height: auto !important;
     border-right: none !important;
     border-bottom: 1px solid var(--gl-border);
