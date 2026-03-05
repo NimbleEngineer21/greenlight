@@ -131,7 +131,14 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
       {/* Cash Flow Cards */}
       <div className="gl-cards-4" style={{ marginBottom: 18 }}>
         {[
-          { l: "Paychecks", s: `${c.cashFlow.pays} × $${state.cashFlow.paycheckAmount.toLocaleString()}`, v: c.cashFlow.payTotal, clr: colors.green },
+          {
+            l: "Paychecks",
+            s: c.cashFlow.spousePayTotal > 0
+              ? `You: ${c.cashFlow.pays} · Spouse: ${c.cashFlow.spousePays}`
+              : `${c.cashFlow.pays} × $${state.cashFlow.paycheckAmount.toLocaleString()}`,
+            v: c.cashFlow.payTotal + c.cashFlow.spousePayTotal,
+            clr: colors.green,
+          },
           { l: "Expenses", s: `${c.cashFlow.mortgageCount} months`, v: -c.cashFlow.expTotal, clr: colors.red },
           { l: "Obligations", s: "One-time", v: -c.cashFlow.obTotal, clr: colors.red },
           { l: "Net Cash Flow", s: fmtDate(c.sellDate), v: c.cashFlow.net, clr: c.cashFlow.net >= 0 ? colors.green : colors.red },
@@ -169,10 +176,11 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
           <thead>
             <tr style={{ background: colors.bgHeader, borderBottom: `2px solid ${colors.border}` }}>
-              {["Platform", "Asset", "Qty", "Price", "Gross", "Basis", "Gain/Loss", "Fees", "Net", ""].map(h => (
+              {["Platform", "Asset", "Qty", "Price", "Liq %", "Gross", "Basis", "Gain/Loss", "Fees", "Net", ""].map(h => (
                 <th key={h} style={{
                   padding: "10px 8px", textAlign: h === "Platform" || h === "Asset" ? "left" : "right",
                   color: colors.dim, fontWeight: 600, fontSize: 13, textTransform: "uppercase", letterSpacing: 1,
+                  position: "sticky", top: 0, background: colors.bgHeader, zIndex: 2,
                 }}>{h}</th>
               ))}
             </tr>
@@ -183,7 +191,7 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
               <tr key={ca.id} style={{ borderBottom: "1px solid #0e1620" }}>
                 <td style={{ padding: "8px" }}>{ca.platform}</td>
                 <td>{ca.name}</td>
-                <td colSpan={2} style={{ textAlign: "right", color: colors.dim }}>—</td>
+                <td colSpan={3} style={{ textAlign: "right", color: colors.dim }}>—</td>
                 <td style={{ textAlign: "right", color: colors.green }}>{fmt(ca.balance)}</td>
                 <td colSpan={3} style={{ textAlign: "right", color: colors.dim }}>—</td>
                 <td style={{ textAlign: "right" }}>{fmt(ca.balance)}</td>
@@ -216,6 +224,21 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
                       />
                     )}
                   </td>
+                  <td style={{ textAlign: "right" }}>
+                    <input type="number" min="0" max="100" step="1"
+                      value={a.liquidationPercent ?? 100}
+                      onChange={e => updateState(prev => ({
+                        ...prev,
+                        assets: prev.assets.map(x => x.id === a.id ? { ...x, liquidationPercent: Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0)) } : x),
+                      }))}
+                      style={{
+                        width: 52, background: colors.bgInput, border: `1px solid ${colors.border}`,
+                        color: (a.liquidationPercent ?? 100) < 100 ? colors.amber : colors.dim,
+                        textAlign: "right", padding: "3px 4px", borderRadius: 4,
+                        fontFamily: "'IBM Plex Mono', monospace", fontSize: 13,
+                      }}
+                    />
+                  </td>
                   <td style={{ textAlign: "right", color: hasPrice ? colors.text : colors.dim }}>{fmt(a.gross)}</td>
                   <td style={{ textAlign: "right", color: colors.blue }}>{fmt(a.costBasis)}</td>
                   <td style={{ textAlign: "right", color: glColor, fontWeight: 600 }}>{fmt(a.gainLoss)}</td>
@@ -237,6 +260,24 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
                   {Math.round((state.retirement.penaltyRate + state.retirement.taxRate + state.retirement.stateTaxRate) * 100)}%
                   {(acct.accountType === "roth_401k" || acct.accountType === "roth_ira") ? " (earnings)" : ""}
                 </td>
+                <td style={{ textAlign: "right" }}>
+                  <input type="number" min="0" max="100" step="1"
+                    value={acct.liquidationPercent ?? 100}
+                    onChange={e => updateState(prev => ({
+                      ...prev,
+                      retirement: {
+                        ...prev.retirement,
+                        accounts: prev.retirement.accounts.map(x => x.id === acct.id ? { ...x, liquidationPercent: Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0)) } : x),
+                      },
+                    }))}
+                    style={{
+                      width: 52, background: colors.bgInput, border: `1px solid ${colors.border}`,
+                      color: (acct.liquidationPercent ?? 100) < 100 ? colors.amber : colors.dim,
+                      textAlign: "right", padding: "3px 4px", borderRadius: 4,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 13,
+                    }}
+                  />
+                </td>
                 <td style={{ textAlign: "right" }}>{fmt(acct.balance)}</td>
                 <td style={{ textAlign: "right", color: colors.red }}>{fmt(acct.deductions)}</td>
                 <td style={{ textAlign: "right", color: colors.red }}>{fmt(-acct.deductions)}</td>
@@ -245,6 +286,27 @@ export default function Dashboard({ state, prices, setPrice, updateState }) {
                 <td style={{ textAlign: "right", fontSize: 13, color: colors.dim }}>Ret</td>
               </tr>
             ))}
+
+            {/* Capital sales */}
+            {(state.capitalSales || []).map((sale, i) => {
+              const gainLoss = (sale.expectedAmount || 0) - (sale.costBasis || 0);
+              const glColor = gainLoss > 0.01 ? colors.green : gainLoss < -0.01 ? colors.red : colors.dim;
+              return (
+                <tr key={sale.id || `cs-${i}`} style={{ borderBottom: "1px solid #0e1620" }}>
+                  <td style={{ padding: "8px", color: colors.dim, fontSize: 14 }}>{sale.saleDate || "—"}</td>
+                  <td>{sale.name}</td>
+                  <td colSpan={3} style={{ textAlign: "right", color: colors.dim }}>—</td>
+                  <td style={{ textAlign: "right" }}>{fmt(sale.expectedAmount)}</td>
+                  <td style={{ textAlign: "right", color: colors.blue }}>{fmt(sale.costBasis)}</td>
+                  <td style={{ textAlign: "right", color: glColor, fontWeight: 600 }}>{fmt(gainLoss)}</td>
+                  <td style={{ textAlign: "right", color: colors.dim }}>—</td>
+                  <td style={{ textAlign: "right" }}>{fmt(sale.expectedAmount)}</td>
+                  <td style={{ textAlign: "right", fontSize: 13, color: sale.isLongTerm ? colors.green : colors.amber }}>
+                    {sale.isLongTerm ? "LT" : "ST"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,7 +1,18 @@
+import { useSyncExternalStore } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { colors, fonts } from "../theme.js";
 import { track } from "../lib/analytics.js";
 import DevImportBanner from "./DevImportBanner.jsx";
+
+const STALE_MS = 30 * 60 * 1000; // 30 minutes
+const TICK_MS = 60_000;
+
+let _now = Date.now();
+let _listeners = [];
+setInterval(() => { _now = Date.now(); _listeners.forEach(fn => fn()); }, TICK_MS);
+
+function subscribeNow(cb) { _listeners.push(cb); return () => { _listeners = _listeners.filter(fn => fn !== cb); }; }
+function getNow() { return _now; }
 
 const CORE_NAV = [
   { to: "/", label: "Dashboard", icon: "◈" },
@@ -46,6 +57,9 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
   const planningNav = planningMode === "home" ? HOME_PLANNING_NAV
     : planningMode === "vehicle" ? VEHICLE_PLANNING_NAV
     : null;
+
+  const now = useSyncExternalStore(subscribeNow, getNow);
+  const isStale = lastFetch && (now - lastFetch.getTime() > STALE_MS);
 
   return (
     <div className="gl-layout" style={{ fontFamily: fonts.mono, background: colors.bg, color: colors.text, height: "100vh", display: "flex", overflow: "hidden" }}>
@@ -104,7 +118,7 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
           className="gl-kofi"
           onClick={() => track("kofi_click")}
           aria-label="Support GreenLight on Ko-fi"
-          style={{ display: "block", padding: "8px 12px", marginTop: 4, opacity: 0.5, transition: "opacity 0.2s" }}>
+          style={{ display: "flex", alignItems: "center", padding: "8px 20px 8px 23px", marginTop: 4, opacity: 0.5, transition: "opacity 0.2s" }}>
           <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee"
             width={120} height={28} decoding="async" style={{ border: 0 }} />
         </a>
@@ -116,23 +130,30 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
         {/* Top bar */}
         <header className="gl-header">
           <div style={{ fontSize: 13, color: colors.dim, display: "flex", alignItems: "center", gap: 8 }}>
-            {lastFetch && (
-              <>
-                <span className="gl-dot gl-dot-green gl-dot-pulse" />
-                <span style={{ color: colors.muted }}>{lastFetch.toLocaleTimeString()}</span>
-              </>
-            )}
-            {fetchErr && <span style={{ marginLeft: 8, color: colors.amber }}>⚠ {fetchErr}</span>}
+            {fetchErr && <span style={{ color: colors.amber }}>⚠ {fetchErr}</span>}
           </div>
           <div className="gl-header-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <button
               className="gl-btn gl-btn-ghost gl-btn-sm gl-header-refresh"
               onClick={onRefresh}
               disabled={fetching}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
             >
+              {lastFetch && (
+                <span className={`gl-dot ${isStale ? "gl-dot-amber" : "gl-dot-green"} gl-dot-pulse`} />
+              )}
               {fetching ? "↻ ..." : "↻ Refresh"}
             </button>
             <div className="gl-header-divider" />
+            <div className="gl-date-field">
+              <label className="gl-date-label">SELL DATE</label>
+              <input
+                type="date"
+                value={sellDate}
+                onChange={e => onSellDateChange(e.target.value)}
+                className="gl-date-input"
+              />
+            </div>
             {planningMode && (
               <div className="gl-date-field">
                 <label className="gl-date-label">PURCHASE DATE</label>
@@ -144,15 +165,6 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
                 />
               </div>
             )}
-            <div className="gl-date-field">
-              <label className="gl-date-label">SELL DATE</label>
-              <input
-                type="date"
-                value={sellDate}
-                onChange={e => onSellDateChange(e.target.value)}
-                className="gl-date-input"
-              />
-            </div>
           </div>
         </header>
 

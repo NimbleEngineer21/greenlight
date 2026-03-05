@@ -19,8 +19,19 @@ export default function ReadinessTimeline({ readinessMonth, totalMonths, markers
 
   const barPct = readinessMonth != null ? pct(readinessMonth) : 100;
 
+  // Sort markers by position and stagger labels above/below to avoid overlap
+  const sorted = [...markers].sort((a, b) => a.month - b.month);
+  const staggered = [];
+  for (let i = 0; i < sorted.length; i++) {
+    let above = i % 2 === 0;
+    if (i > 0 && Math.abs(pct(sorted[i].month) - pct(sorted[i - 1].month)) < 8) {
+      above = !staggered[i - 1].above;
+    }
+    staggered.push({ ...sorted[i], above });
+  }
+
   return (
-    <div style={{ padding: "12px 0" }}>
+    <div style={{ padding: "30px 0 12px" }}>
       {/* Track */}
       <div style={{ position: "relative", height: 28, background: colors.bgInput, borderRadius: 14, overflow: "visible" }}>
         {/* Filled bar */}
@@ -32,7 +43,7 @@ export default function ReadinessTimeline({ readinessMonth, totalMonths, markers
         }} />
 
         {/* Markers */}
-        {markers.map((m, i) => {
+        {staggered.map((m, i) => {
           const left = pct(m.month);
           const markerColor = m.type === "target" ? colors.green
             : m.type === "ltDate" ? colors.blue
@@ -42,10 +53,12 @@ export default function ReadinessTimeline({ readinessMonth, totalMonths, markers
               position: "absolute", top: -4, left: `${left}%`, transform: "translateX(-50%)",
               width: m.type === "target" ? 3 : 2, height: 36,
               background: markerColor, opacity: m.type === "target" ? 0.9 : 0.7,
-              borderStyle: m.type === "target" ? "dashed" : "solid",
             }}>
               <div style={{
-                position: "absolute", top: 40, left: "50%", transform: "translateX(-50%)",
+                position: "absolute",
+                ...(m.above
+                  ? { bottom: 40, left: "50%", transform: "translateX(-50%)" }
+                  : { top: 40, left: "50%", transform: "translateX(-50%)" }),
                 fontSize: 9, color: markerColor, fontWeight: m.type === "target" ? 600 : 400,
                 whiteSpace: "nowrap", letterSpacing: 0.5,
               }}>

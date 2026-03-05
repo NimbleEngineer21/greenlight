@@ -67,7 +67,14 @@ export default function Projections({ state, updateState }) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
         {[
-          { l: "Paychecks", s: `${cf.pays} × $${state.cashFlow.paycheckAmount?.toLocaleString() || 0}`, v: cf.payTotal, clr: colors.green },
+          {
+            l: "Paychecks",
+            s: cf.spousePayTotal > 0
+              ? `You: ${cf.pays} · Spouse: ${cf.spousePays}`
+              : `${cf.pays} × $${state.cashFlow.paycheckAmount?.toLocaleString() || 0}`,
+            v: cf.payTotal + cf.spousePayTotal,
+            clr: colors.green,
+          },
           { l: "Expenses", s: `${cf.mortgageCount} occurrences`, v: -cf.expTotal, clr: colors.red },
           { l: "Obligations", s: "One-time due", v: -cf.obTotal, clr: colors.red },
           { l: "Net Cash Flow", s: `by ${fmtDate(sellDate)}`, v: cf.net, clr: cf.net >= 0 ? colors.green : colors.red },
@@ -82,7 +89,7 @@ export default function Projections({ state, updateState }) {
 
       {/* Paycheck config */}
       <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 11, color: colors.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10, fontWeight: 600 }}>Paycheck Config</div>
+        <div style={{ fontSize: 11, color: colors.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10, fontWeight: 600 }}>Your Paycheck</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <div>
             <label style={labelStyle}>Amount</label>
@@ -102,6 +109,32 @@ export default function Projections({ state, updateState }) {
             <input type="date" value={state.cashFlow.firstPayDate} onChange={e => updateCashFlow("firstPayDate", e.target.value)} style={inputStyle} />
           </div>
         </div>
+      </div>
+
+      {/* Spouse paycheck config */}
+      <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 14, marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: colors.dim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10, fontWeight: 600 }}>Spouse Paycheck</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={labelStyle}>Amount</label>
+            <input type="number" step="0.01" value={state.cashFlow.spousePaycheckAmount || ""}
+              onChange={e => updateCashFlow("spousePaycheckAmount", parseFloat(e.target.value) || 0)} style={inputStyle}
+              placeholder="0 = none" />
+          </div>
+          <div>
+            <label style={labelStyle}>Frequency</label>
+            <select value={state.cashFlow.spousePaycheckFrequency || "biweekly"} onChange={e => updateCashFlow("spousePaycheckFrequency", e.target.value)} style={inputStyle}>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Biweekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>First Pay Date</label>
+            <input type="date" value={state.cashFlow.spouseFirstPayDate || ""} onChange={e => updateCashFlow("spouseFirstPayDate", e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ fontSize: 10, color: colors.dim, marginTop: 6 }}>Leave amount at 0 if no spouse income.</div>
       </div>
 
       {/* Recurring Expenses */}

@@ -24,13 +24,17 @@ export function feeLabel(plat) {
   return parts.join(" + ") || "Free";
 }
 
-export function paychecksBefore(sellDate, cashFlowConfig) {
+export function paychecksBefore(sellDate, cashFlowConfig, _today = null) {
   const { paycheckAmount, firstPayDate, paycheckFrequency } = cashFlowConfig;
   if (!paycheckAmount || !firstPayDate) return 0;
   const interval = paycheckFrequency === "weekly" ? 7 : paycheckFrequency === "monthly" ? 30 : 14;
+  const today = _today ? new Date(_today) : new Date();
+  today.setHours(12, 0, 0, 0);
   let count = 0;
   let t = new Date(firstPayDate + "T12:00:00");
   const sell = typeof sellDate === "string" ? new Date(sellDate + "T12:00:00") : sellDate;
+  // Skip past paychecks — they're already reflected in current cash balance
+  while (t < today) t = new Date(t.getTime() + interval * 864e5);
   while (t <= sell) {
     count++;
     t = new Date(t.getTime() + interval * 864e5);
@@ -38,12 +42,16 @@ export function paychecksBefore(sellDate, cashFlowConfig) {
   return count;
 }
 
-export function expensesBefore(sellDate, expenses) {
+export function expensesBefore(sellDate, expenses, _today = null) {
   const sell = typeof sellDate === "string" ? new Date(sellDate + "T12:00:00") : sellDate;
+  const today = _today ? new Date(_today) : new Date();
+  today.setHours(12, 0, 0, 0);
   let total = 0;
   for (const exp of expenses) {
     if (exp.frequency === "monthly") {
       let d = new Date(exp.startDate + "T12:00:00");
+      // Skip past occurrences — already reflected in current cash balance
+      while (d < today) d.setMonth(d.getMonth() + 1);
       while (d <= sell) {
         total += exp.amount;
         d.setMonth(d.getMonth() + 1);
@@ -51,6 +59,7 @@ export function expensesBefore(sellDate, expenses) {
     } else if (exp.frequency === "biweekly" || exp.frequency === "weekly") {
       const interval = exp.frequency === "weekly" ? 7 : 14;
       let d = new Date(exp.startDate + "T12:00:00");
+      while (d < today) d = new Date(d.getTime() + interval * 864e5);
       while (d <= sell) {
         total += exp.amount;
         d = new Date(d.getTime() + interval * 864e5);
@@ -71,11 +80,23 @@ export function obligationsBefore(sellDate, obligations) {
   return total;
 }
 
-export function calcCashFlow(sellDate, cashFlowConfig) {
-  const pays = paychecksBefore(sellDate, cashFlowConfig);
+export function calcCashFlow(sellDate, cashFlowConfig, _today = null) {
+  const pays = paychecksBefore(sellDate, cashFlowConfig, _today);
   const payTotal = pays * cashFlowConfig.paycheckAmount;
-  const expTotal = expensesBefore(sellDate, cashFlowConfig.expenses || []);
+
+  // Spouse paychecks
+  const spouseConfig = {
+    paycheckAmount: cashFlowConfig.spousePaycheckAmount,
+    firstPayDate: cashFlowConfig.spouseFirstPayDate,
+    paycheckFrequency: cashFlowConfig.spousePaycheckFrequency || "biweekly",
+  };
+  const spousePays = paychecksBefore(sellDate, spouseConfig, _today);
+  const spousePayTotal = spousePays * (cashFlowConfig.spousePaycheckAmount || 0);
+
+  const expTotal = expensesBefore(sellDate, cashFlowConfig.expenses || [], _today);
   const obTotal = obligationsBefore(sellDate, cashFlowConfig.oneTimeObligations || []);
+  const today = _today ? new Date(_today) : new Date();
+  today.setHours(12, 0, 0, 0);
   const mortgageCount = cashFlowConfig.expenses?.length > 0
     ? (() => {
         let count = 0;
@@ -83,13 +104,14 @@ export function calcCashFlow(sellDate, cashFlowConfig) {
         for (const exp of cashFlowConfig.expenses) {
           if (exp.frequency === "monthly") {
             let d = new Date(exp.startDate + "T12:00:00");
+            while (d < today) d.setMonth(d.getMonth() + 1);
             while (d <= sell) { count++; d.setMonth(d.getMonth() + 1); }
           }
         }
         return count;
       })()
     : 0;
-  return { pays, payTotal, expTotal, obTotal, mortgageCount, net: payTotal - expTotal - obTotal };
+  return { pays, payTotal, spousePays, spousePayTotal, expTotal, obTotal, mortgageCount, net: payTotal + spousePayTotal - expTotal - obTotal };
 }
 
 export function calcRetirementNet(retirement) {
@@ -104,25 +126,28 @@ export function calcRetirementNet(retirement) {
 
   for (const acct of accounts) {
     const { accountType, balance, contributions = 0 } = acct;
+    const liqPct = (acct.liquidationPercent ?? 100) / 100;
+    const effBalance = balance * liqPct;
+    const effContributions = contributions * liqPct;
     let penalty = 0, tax = 0;
 
     if (accountType === "roth_401k" || accountType === "roth_ira") {
-      // Roth: only earnings (balance - contributions) are penalized and taxed
-      const earnings = Math.max(0, balance - contributions);
+      // Roth: only the earnings portion of the liquidated amount is penalized/taxed
+      const earnings = Math.max(0, effBalance - effContributions);
       penalty = earnings * penaltyRate;
       tax = earnings * incomeTaxRate;
     } else {
       // Pre-tax 401k, Traditional IRA, Safe Harbor, Unknown: full balance
-      penalty = balance * penaltyRate;
-      tax = balance * incomeTaxRate;
+      penalty = effBalance * penaltyRate;
+      tax = effBalance * incomeTaxRate;
     }
 
     const deductions = penalty + tax;
-    totalGross += balance;
+    totalGross += effBalance;
     totalDeductions += deductions;
 
     accountResults.push({
-      ...acct, penalty, tax, deductions, net: balance - deductions,
+      ...acct, penalty, tax, deductions, net: effBalance - deductions,
     });
   }
 
@@ -144,11 +169,14 @@ export function calcSummary(state, prices) {
   let ltGains = 0, ltLosses = 0, stGains = 0, stLosses = 0, totalFees = 0, totalNetProceeds = 0;
 
   const rows = (state.assets || []).map(asset => {
+    const liqPct = (asset.liquidationPercent ?? 100) / 100;
     const price = asset.priceKey ? (prices[asset.priceKey] || 0) : 0;
-    const gross = asset.priceKey === null ? asset.costBasis : asset.quantity * price;
-    const fee = calcFee(asset, gross, platforms);
+    const effectiveQty = (asset.quantity ?? 0) * liqPct;
+    const gross = asset.priceKey === null ? asset.costBasis * liqPct : effectiveQty * price;
+    const effectiveBasis = asset.costBasis * liqPct;
+    const fee = calcFee({ ...asset, quantity: effectiveQty }, gross, platforms);
     const net = gross - fee;
-    const gainLoss = gross - asset.costBasis;
+    const gainLoss = gross - effectiveBasis;
     const lt = isLongTerm(asset.acquisitionDate, sell);
 
     totalFees += fee;
@@ -236,6 +264,14 @@ export function calcMonthlySavings(cashFlowConfig) {
     if (paycheckFrequency === "weekly") monthlyIncome = paycheckAmount * 52 / 12;
     else if (paycheckFrequency === "biweekly") monthlyIncome = paycheckAmount * 26 / 12;
     else monthlyIncome = paycheckAmount; // monthly
+  }
+  // Spouse income
+  const spa = cashFlowConfig.spousePaycheckAmount || 0;
+  if (spa) {
+    const spf = cashFlowConfig.spousePaycheckFrequency || "biweekly";
+    if (spf === "weekly") monthlyIncome += spa * 52 / 12;
+    else if (spf === "biweekly") monthlyIncome += spa * 26 / 12;
+    else monthlyIncome += spa;
   }
   let monthlyExpenses = 0;
   for (const exp of (expenses || [])) {

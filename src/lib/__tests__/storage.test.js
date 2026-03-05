@@ -56,6 +56,82 @@ describe("migrateState", () => {
     const result = migrateState(future);
     expect(result).toBe(future);
   });
+
+  it("v3→v4: ensures platforms object exists", () => {
+    const v3 = { schemaVersion: 3, assets: [], cashAccounts: [] };
+    const result = migrateState(v3);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.platforms).toEqual({});
+  });
+
+  it("v3→v4: preserves existing platforms", () => {
+    const v3 = { schemaVersion: 3, assets: [], cashAccounts: [], platforms: { cs: { name: "CS", feePerShare: 0.10, flatFee: 10, feePercent: 0 } } };
+    const result = migrateState(v3);
+    expect(result.platforms.cs.name).toBe("CS");
+  });
+
+  it("v4→v5: adds spouse paycheck fields to cashFlow", () => {
+    const v4 = { schemaVersion: 4, assets: [], cashAccounts: [], cashFlow: { paycheckAmount: 5000 } };
+    const result = migrateState(v4);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.cashFlow.spousePaycheckAmount).toBe(0);
+    expect(result.cashFlow.spousePaycheckFrequency).toBe("biweekly");
+    expect(result.cashFlow.spouseFirstPayDate).toBe("");
+    expect(result.cashFlow.paycheckAmount).toBe(5000);
+  });
+
+  it("v4→v5: creates cashFlow when missing", () => {
+    const v4 = { schemaVersion: 4, assets: [], cashAccounts: [] };
+    const result = migrateState(v4);
+    expect(result.cashFlow.spousePaycheckAmount).toBe(0);
+    expect(result.cashFlow.spousePaycheckFrequency).toBe("biweekly");
+  });
+
+  it("v5→v6: adds liquidationPercent to assets", () => {
+    const v5 = { schemaVersion: 5, assets: [{ name: "GME", quantity: 10 }], cashAccounts: [] };
+    const result = migrateState(v5);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.assets[0].liquidationPercent).toBe(100);
+  });
+
+  it("v5→v6: adds liquidationPercent to retirement accounts", () => {
+    const v5 = {
+      schemaVersion: 5, assets: [], cashAccounts: [],
+      retirement: { accounts: [{ accountType: "pretax_401k", balance: 50000 }] },
+    };
+    const result = migrateState(v5);
+    expect(result.retirement.accounts[0].liquidationPercent).toBe(100);
+  });
+
+  it("v5→v6: initializes assets to empty array when missing", () => {
+    const v5 = { schemaVersion: 5, cashAccounts: [] };
+    const result = migrateState(v5);
+    expect(Array.isArray(result.assets)).toBe(true);
+    expect(result.assets.length).toBe(0);
+  });
+
+  it("v5→v6: preserves existing liquidationPercent", () => {
+    const v5 = { schemaVersion: 5, assets: [{ name: "X", liquidationPercent: 75 }], cashAccounts: [] };
+    const result = migrateState(v5);
+    expect(result.assets[0].liquidationPercent).toBe(75);
+  });
+
+  it("full migration v1→v6 works end to end", () => {
+    const v1 = {
+      schemaVersion: 1,
+      assets: [{ name: "GME", symbol: "GME", quantity: 10 }],
+      cashAccounts: [{ name: "Checking", balance: 5000 }],
+      purchase: { category: "home", homePrice: 350000 },
+      platforms: { cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10 } },
+      cashFlow: { paycheckAmount: 5000 },
+    };
+    const result = migrateState(v1);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.purchase.carMaintenanceAnnual).toBeNull();
+    expect(result.platforms.cs.feePercent).toBe(0);
+    expect(result.cashFlow.spousePaycheckAmount).toBe(0);
+    expect(result.assets[0].liquidationPercent).toBe(100);
+  });
 });
 
 describe("validateImport", () => {

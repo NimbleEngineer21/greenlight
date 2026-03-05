@@ -25,12 +25,16 @@ export const COINGECKO_TICKERS = {
   pol: "polygon-ecosystem-token",
 };
 
-export const DEFAULT_PLATFORMS = {
+// Known platform fees — auto-populated when importing from these platforms
+export const KNOWN_PLATFORM_FEES = {
   cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10, feePercent: 0 },
   gem: { name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 },
   pp: { name: "Paypal", feePerShare: 0, flatFee: 0, feePercent: 0.02 },
   fidelity: { name: "Fidelity", feePerShare: 0, flatFee: 0, feePercent: 0 },
 };
+
+// New users start with no platform fees — populated on import or manually in Settings
+export const DEFAULT_PLATFORMS = {};
 
 export const DEFAULT_TAX_CONFIG = {
   taxMode: "progressive",  // "progressive" (bracket-based) or "flat" (manual rates)
@@ -70,6 +74,9 @@ export const DEFAULT_CASH_FLOW = {
   paycheckAmount: 5395.63,
   paycheckFrequency: "biweekly",
   firstPayDate: "2026-03-06",
+  spousePaycheckAmount: 0,
+  spousePaycheckFrequency: "biweekly",
+  spouseFirstPayDate: "",
   expenses: [
     { id: uuid(), name: "Mortgage", amount: 1679, frequency: "monthly", dayOfMonth: 1, startDate: "2026-04-01" },
   ],
@@ -123,7 +130,7 @@ export const DEFAULT_READINESS = {
   assetAppreciationRate: 0,
 };
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 6;
 
 export function createDefaultState() {
   return {
@@ -200,6 +207,7 @@ export function createSeededState() {
       { id: uuid(), accountType: "safe_harbor", platform: "Empower", balance: 15000, contributions: 0 },
     ],
   };
+  state.platforms = { ...KNOWN_PLATFORM_FEES };
   state.priceOverrides = { gme: 24.03, wgme: 4.30 };
   return state;
 }
