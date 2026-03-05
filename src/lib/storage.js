@@ -96,18 +96,16 @@ export function validateImport(obj) {
   }
 
   // Must have a schema version (any GreenLight export has one)
-  if (obj.schemaVersion == null && obj.assets == null && obj.cashAccounts == null) {
-    throw new Error("This doesn't look like a GreenLight backup (no schemaVersion or data found)");
+  if (obj.schemaVersion == null) {
+    throw new Error("This doesn't look like a GreenLight backup (no schemaVersion found)");
   }
 
   // Schema version sanity check
-  if (obj.schemaVersion != null) {
-    if (typeof obj.schemaVersion !== "number" || obj.schemaVersion < 1) {
-      throw new Error(`Invalid schemaVersion: ${obj.schemaVersion}`);
-    }
-    if (obj.schemaVersion > SCHEMA_VERSION + 5) {
-      throw new Error(`This backup is from a newer version (v${obj.schemaVersion}). Update GreenLight first.`);
-    }
+  if (typeof obj.schemaVersion !== "number" || obj.schemaVersion < 1) {
+    throw new Error(`Invalid schemaVersion: ${obj.schemaVersion}`);
+  }
+  if (obj.schemaVersion > SCHEMA_VERSION + 5) {
+    throw new Error(`This backup is from a newer version (v${obj.schemaVersion}). Update GreenLight first.`);
   }
 
   // Validate array fields are actually arrays
@@ -158,6 +156,32 @@ export function migrateState(state) {
     return state;
   }
 
-  // Unknown older version — reset
-  return createDefaultState();
+  let data = { ...state };
+
+  // v1 → v2: add carMaintenanceAnnual to purchase
+  if ((data.schemaVersion ?? 0) < 2) {
+    if (data.purchase && data.purchase.carMaintenanceAnnual === undefined) {
+      data.purchase = { ...data.purchase, carMaintenanceAnnual: null };
+    }
+    data.schemaVersion = 2;
+  }
+
+  // v2 → v3: normalize platform fee fields (all three always present)
+  if (data.schemaVersion < 3) {
+    if (data.platforms) {
+      const migrated = {};
+      for (const [key, plat] of Object.entries(data.platforms)) {
+        migrated[key] = {
+          name: plat.name,
+          feePerShare: plat.feePerShare ?? 0,
+          flatFee: plat.flatFee ?? 0,
+          feePercent: plat.feePercent ?? 0,
+        };
+      }
+      data.platforms = migrated;
+    }
+    data.schemaVersion = 3;
+  }
+
+  return data;
 }

@@ -20,10 +20,35 @@ describe("migrateState", () => {
     expect(result.dateOfBirth).toEqual({ month: "", year: "" });
   });
 
-  it("resets unknown older versions to defaults", () => {
-    const result = migrateState({ schemaVersion: 0, assets: [], purchase: {} });
+  it("migrates v1 state: adds carMaintenanceAnnual and normalizes platforms", () => {
+    const v1State = {
+      schemaVersion: 1,
+      assets: [{ name: "GME", symbol: "GME", quantity: 10 }],
+      cashAccounts: [{ name: "Checking", balance: 5000 }],
+      purchase: { category: "home", homePrice: 350000 },
+      platforms: { cs: { name: "ComputerShare", feePerShare: 0.10, flatFee: 10 }, gem: { name: "Gemini", feePercent: 0.015 } },
+    };
+    const result = migrateState(v1State);
     expect(result.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(Array.isArray(result.assets)).toBe(true);
+    expect(result.purchase.carMaintenanceAnnual).toBeNull();
+    expect(result.purchase.homePrice).toBe(350000);
+    expect(result.assets[0].name).toBe("GME");
+    expect(result.cashAccounts[0].balance).toBe(5000);
+    expect(result.platforms.cs).toEqual({ name: "ComputerShare", feePerShare: 0.10, flatFee: 10, feePercent: 0 });
+    expect(result.platforms.gem).toEqual({ name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 });
+  });
+
+  it("migrates v2 state: normalizes platforms to three-field format", () => {
+    const v2State = {
+      schemaVersion: 2,
+      assets: [],
+      purchase: { category: "vehicle", carMaintenanceAnnual: 500 },
+      platforms: { pp: { name: "Paypal", feePercent: 0.02 } },
+    };
+    const result = migrateState(v2State);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(result.purchase.carMaintenanceAnnual).toBe(500);
+    expect(result.platforms.pp).toEqual({ name: "Paypal", feePerShare: 0, flatFee: 0, feePercent: 0.02 });
   });
 
   it("returns future-versioned state as-is", () => {
@@ -42,8 +67,8 @@ describe("validateImport", () => {
     })).not.toThrow();
   });
 
-  it("accepts old backups without schemaVersion if they have data", () => {
-    expect(() => validateImport({ assets: [{ name: "GME", symbol: "GME" }] })).not.toThrow();
+  it("rejects backups without schemaVersion even if they have data", () => {
+    expect(() => validateImport({ assets: [{ name: "GME", symbol: "GME" }] })).toThrow("no schemaVersion");
   });
 
   it("rejects non-object inputs", () => {
@@ -54,7 +79,7 @@ describe("validateImport", () => {
   });
 
   it("rejects objects that don't look like GreenLight data", () => {
-    expect(() => validateImport({ foo: "bar" })).toThrow("doesn't look like a GreenLight backup");
+    expect(() => validateImport({ foo: "bar" })).toThrow("no schemaVersion");
   });
 
   it("rejects invalid schemaVersion", () => {

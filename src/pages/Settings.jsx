@@ -174,7 +174,6 @@ export default function Settings({ state, updateState, replaceState }) {
     }
   };
 
-
   const labelStyle = { fontSize: 13, color: colors.dim, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 4 };
   const inputStyle = styles.input;
   const btnStyle = { ...styles.btn, padding: "8px 18px", fontSize: 15 };
@@ -354,17 +353,17 @@ export default function Settings({ state, updateState, replaceState }) {
             <div>
               <label style={labelStyle}>Fee/Share</label>
               <input type="number" step="0.01" value={plat.feePerShare ?? 0}
-                onChange={e => updatePlatform(key, "feePerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
+                onChange={e => updatePlatform(key, "feePerShare", Math.max(0, parseFloat(e.target.value) || 0))} style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Flat Fee</label>
               <input type="number" step="1" value={plat.flatFee ?? 0}
-                onChange={e => updatePlatform(key, "flatFee", parseFloat(e.target.value) || 0)} style={inputStyle} />
+                onChange={e => updatePlatform(key, "flatFee", Math.max(0, parseFloat(e.target.value) || 0))} style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Fee %</label>
               <input type="number" step="0.001" value={plat.feePercent ?? 0}
-                onChange={e => updatePlatform(key, "feePercent", parseFloat(e.target.value) || 0)} style={inputStyle} />
+                onChange={e => updatePlatform(key, "feePercent", Math.max(0, parseFloat(e.target.value) || 0))} style={inputStyle} />
             </div>
             <div style={{ fontSize: 11, color: colors.dim, paddingBottom: 6 }}>Key: {key}</div>
             <button onClick={() => removePlatform(key)} style={{ ...btnStyle, color: colors.red, fontSize: 11, padding: "5px 10px" }}>×</button>
@@ -478,7 +477,7 @@ export default function Settings({ state, updateState, replaceState }) {
             Import
             <input type="file" accept=".greenlight,.json" onChange={handleFileSelected} style={{ display: "none" }} />
           </label>
-<button onClick={handleReset} style={{ ...btnStyle, color: colors.red }}>Reset to Defaults</button>
+          <button onClick={handleReset} style={{ ...btnStyle, color: colors.red }}>Reset to Defaults</button>
         </div>
 
         {showExportForm && (

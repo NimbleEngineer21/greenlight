@@ -46,6 +46,11 @@ describe("calcFee", () => {
     expect(calcFee(asset, 8000, platforms)).toBe(95);
   });
 
+  it("handles undefined quantity without NaN", () => {
+    const asset = { feeType: "cs" };
+    expect(calcFee(asset, 5000, platforms)).toBe(10); // 0 * 0.10 + 10 + 0 * 5000
+  });
+
   it("returns 0 for feeType none", () => {
     expect(calcFee({ feeType: "none" }, 5000, platforms)).toBe(0);
   });
@@ -186,7 +191,7 @@ describe("calcSummary", () => {
       ltcgRate: 0.15, stcgRate: 0.24, niitRate: 0.038, niitApplies: false,
       standardDeduction: 31400,
     },
-    platforms: { gem: { name: "Gemini", feePercent: 0.015 } },
+    platforms: { gem: { name: "Gemini", feePerShare: 0, flatFee: 0, feePercent: 0.015 } },
     cashFlow: {
       paycheckAmount: 5000, firstPayDate: "2026-03-06", paycheckFrequency: "biweekly",
       expenses: [], oneTimeObligations: [],

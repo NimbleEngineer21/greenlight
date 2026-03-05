@@ -123,7 +123,7 @@ export const DEFAULT_READINESS = {
   assetAppreciationRate: 0,
 };
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 export function createDefaultState() {
   return {

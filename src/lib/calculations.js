@@ -13,7 +13,15 @@ export function calcFee(asset, grossValue, platforms) {
   if (ft === "none" || !ft) return 0;
   const plat = platforms[ft];
   if (!plat) return 0;
-  return (plat.feePerShare || 0) * asset.quantity + (plat.flatFee || 0) + (plat.feePercent || 0) * grossValue;
+  return (plat.feePerShare || 0) * (asset.quantity ?? 0) + (plat.flatFee || 0) + (plat.feePercent || 0) * grossValue;
+}
+
+export function feeLabel(plat) {
+  const parts = [];
+  if (plat.feePerShare) parts.push(`$${plat.feePerShare}/sh`);
+  if (plat.flatFee) parts.push(`$${plat.flatFee} flat`);
+  if (plat.feePercent) parts.push(`${(plat.feePercent * 100).toFixed(1)}%`);
+  return parts.join(" + ") || "Free";
 }
 
 export function paychecksBefore(sellDate, cashFlowConfig) {

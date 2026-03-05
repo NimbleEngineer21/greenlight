@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { colors, styles } from "../theme.js";
-import { calcSummary, calcRetirementNet, fmt, fmtQty } from "../lib/calculations.js";
+import { calcSummary, calcRetirementNet, feeLabel, fmt, fmtQty } from "../lib/calculations.js";
 import { RETIREMENT_ACCOUNT_TYPES, uuid } from "../data/defaults.js";
 
 const EMPTY_ASSET = {
@@ -185,7 +185,7 @@ export default function Assets({ state, updateState, prices }) {
               <React.Fragment key={key}>
                 <span style={{ color: colors.dim, fontSize: 14 }}>{plat.name}:</span>
                 <span style={{ textAlign: "right", fontSize: 14 }}>
-                  {[plat.feePerShare ? `$${plat.feePerShare}/sh` : null, plat.flatFee ? `$${plat.flatFee} flat` : null, plat.feePercent ? `${(plat.feePercent * 100).toFixed(1)}%` : null].filter(Boolean).join(" + ") || "Free"}
+                  {feeLabel(plat)}
                 </span>
               </React.Fragment>
             ))}

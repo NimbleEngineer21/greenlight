@@ -111,7 +111,7 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
       </nav>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100vh", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
 
         {/* Top bar */}
         <header className="gl-header">
