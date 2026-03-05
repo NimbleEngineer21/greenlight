@@ -43,7 +43,7 @@ export function calcEffectiveRate(baseRatePercent, isJumbo, jumboSpreadPercent =
 }
 
 /**
- * Suggest a down payment increase to stay under the conforming limit.
+ * Calculate the down payment needed to stay under the conforming limit.
  * Returns null if the loan is already conforming.
  * @param {number} homePrice
  * @param {number} conformingLimit

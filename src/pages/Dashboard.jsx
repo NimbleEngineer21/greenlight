@@ -332,10 +332,10 @@ function ReadinessWidget({ state, projections, statusResult, cashNeeded, monthly
             <div style={{ fontSize: 13, color: colors.dim, textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: signalColor, marginTop: 2 }}>
               {isReady
-                ? "Ready now"
+                ? "Funds available"
                 : readinessDate
-                  ? `Ready in ~${readinessDate.month} months`
-                  : "Not reachable in 5 years"}
+                  ? `Estimated in ~${readinessDate.month} months`
+                  : "Not estimated within 5 years"}
             </div>
           </div>
         </div>

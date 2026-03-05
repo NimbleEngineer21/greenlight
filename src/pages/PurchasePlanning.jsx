@@ -299,10 +299,10 @@ export default function PurchasePlanning({ state, updateState, prices }) {
         </div>
       </div>
 
-      {/* Liquidation Analysis — Can You Afford It? */}
+      {/* Liquidation Analysis — Purchase vs. Available Funds */}
       <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, padding: 18 }}>
         <div style={{ fontSize: 10, color: colors.dim, fontWeight: 600, marginBottom: 12, letterSpacing: 1.5 }}>
-          CAN YOU AFFORD IT?
+          PURCHASE VS. AVAILABLE FUNDS
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
@@ -342,7 +342,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
 
         {!liquidation.canAfford && (
           <div style={{ fontSize: 13, color: colors.amber, marginTop: 10 }}>
-            You need {fmt(liquidation.shortfall)} more to cover this purchase at current asset values.
+            There is a {fmt(liquidation.shortfall)} gap at current asset values.
           </div>
         )}
       </div>

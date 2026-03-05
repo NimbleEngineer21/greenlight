@@ -7,14 +7,14 @@ import { YEAR } from "../data/conformingLimits.js";
 
 /**
  * Conforming Loan Status card — shows whether the loan is conforming or jumbo,
- * with rate impact analysis and a suggestion to increase down payment.
+ * with rate impact analysis and a conforming down-payment option.
  */
 export default function ConformingStatus({
   zipCode, loanAmount, homePrice, currentDownPercent,
   baseRate, termYears, jumboSpread, zipInfo,
   onZipChange, onSpreadChange, onApplySuggestion,
 }) {
-  const hasZip = zipCode && zipCode.length === 5;
+  const hasZip = zipCode?.length === 5;
 
   const jumbo = useMemo(
     () => hasZip ? detectJumbo(loanAmount, zipCode, !!zipInfo) : null,
@@ -35,9 +35,9 @@ export default function ConformingStatus({
     ? calcEffectiveRate(baseRate, true, jumboSpread)
     : baseRate;
 
-  const locationLabel = zipInfo
-    ? `${zipInfo.city}, ${zipInfo.county} Co., ${zipInfo.state}`
-    : hasZip ? "Looking up..." : null;
+  let locationLabel = null;
+  if (zipInfo) locationLabel = `${zipInfo.city}, ${zipInfo.county} Co., ${zipInfo.state}`;
+  else if (hasZip) locationLabel = "Looking up...";
 
   return (
     <div style={{ ...styles.card, marginBottom: 14 }}>
@@ -57,7 +57,7 @@ export default function ConformingStatus({
             placeholder="e.g. 32301"
             value={zipCode || ""}
             onChange={e => {
-              const val = e.target.value.replace(/\D/g, "").slice(0, 5);
+              const val = e.target.value.replaceAll(/\D/g, "").slice(0, 5);
               onZipChange(val);
             }}
             style={{ ...styles.input, width: 120 }}
@@ -124,7 +124,7 @@ export default function ConformingStatus({
                   <input
                     type="number" step="0.125" min="0" max="2"
                     value={jumboSpread}
-                    onChange={e => onSpreadChange(parseFloat(e.target.value) || 0)}
+                    onChange={e => onSpreadChange(Number.parseFloat(e.target.value) || 0)}
                     style={{ ...styles.input, width: 80, padding: "4px 8px", fontSize: 13 }}
                   />
                   <div style={{ fontSize: 10, color: colors.dim, marginTop: 1 }}>% above conforming</div>
@@ -151,7 +151,7 @@ export default function ConformingStatus({
                 )}
               </div>
 
-              {/* Suggestion to increase down payment */}
+              {/* Conforming option — down payment to avoid jumbo */}
               {suggestion && (
                 <div style={{
                   background: colors.card, border: `1px solid ${colors.border}`,
@@ -159,11 +159,11 @@ export default function ConformingStatus({
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
                   <div style={{ fontSize: 13, color: colors.text }}>
-                    Increase down payment to{" "}
+                    A down payment of{" "}
                     <span style={{ color: colors.green, fontWeight: 600 }}>
                       {suggestion.requiredDownPercent.toFixed(1)}%
                     </span>
-                    {" "}({fmt(suggestion.requiredDownAmount)}) to stay conforming.
+                    {" "}({fmt(suggestion.requiredDownAmount)}) would keep the loan conforming.
                     <span style={{ color: colors.dim, marginLeft: 8 }}>
                       +{fmt(suggestion.additionalDown)} more needed
                     </span>

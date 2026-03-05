@@ -144,18 +144,18 @@ export function calcPointsBreakEven(pointsCost, monthlySavings, opportunityRateP
 }
 
 /**
- * Buy-down recommendation signal based on break-even vs expected stay.
+ * Buy-down break-even signal based on break-even vs expected stay.
  * green: adjusted break-even <= 60% of stay (clear win)
  * yellow: 60-100% of stay (marginal)
- * red: > stay or Infinity (don't buy down)
+ * red: > stay or Infinity (unlikely to break even)
  */
 export function calcBuyDownSignal(adjustedBreakEvenMonths, expectedStayYears) {
   const stayMonths = expectedStayYears * 12;
   if (adjustedBreakEvenMonths === Infinity || adjustedBreakEvenMonths > stayMonths) {
-    return { signal: "red", label: "Skip the buy-down, invest instead" };
+    return { signal: "red", label: "Buy-down unlikely to break even" };
   }
   if (adjustedBreakEvenMonths <= stayMonths * 0.6) {
-    return { signal: "green", label: "Buy down the rate" };
+    return { signal: "green", label: "Buy-down likely to break even" };
   }
   return { signal: "yellow", label: "Marginal \u2014 depends on priorities" };
 }

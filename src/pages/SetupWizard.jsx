@@ -661,7 +661,7 @@ function WelcomeStep() {
         marginBottom: 14,
       }} />
       <div style={{ fontSize: 16, fontWeight: 700, color: colors.text, marginBottom: 10 }}>
-        Free, open-source financial planning.
+        Free, open-source personal finance calculator.
       </div>
       <div style={{ fontSize: 13, color: colors.dim, lineHeight: 1.7, maxWidth: 460, margin: "0 auto" }}>
         All your data lives in your browser — nothing is sent to a server. No account needed.
