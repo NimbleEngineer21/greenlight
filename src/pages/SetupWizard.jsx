@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { colors, fonts, styles } from "../theme.js";
-import { DEFAULT_TAX_CONFIG, uuid } from "../data/defaults.js";
+import { DEFAULT_TAX_CONFIG, uuid, YAHOO_TICKERS, GEMINI_TICKERS, COINGECKO_TICKERS } from "../data/defaults.js";
 import { STATE_TAXES } from "../data/stateTaxes.js";
 import { loanTypeForCategory } from "../lib/purchasePlanner.js";
 import { track } from "../lib/analytics.js";
@@ -18,6 +18,7 @@ const STEPS = [
   { key: "welcome", label: "Welcome" },
   { key: "income", label: "Income" },
   { key: "cash", label: "Cash & Savings" },
+  { key: "investments", label: "Investments" },
   { key: "expenses", label: "Expenses" },
   { key: "obligations", label: "Cash Events" },
   { key: "tax", label: "Tax & Date" },
@@ -28,6 +29,7 @@ const STEPS = [
 export default function SetupWizard({ updateState }) {
   const [step, setStep] = useState(0);
   const [hasExpenses, setHasExpenses] = useState(null);   // null = not answered, true/false
+  const [hasInvestments, setHasInvestments] = useState(null);
   const [hasObligations, setHasObligations] = useState(null);
   const [draft, setDraft] = useState({
     paycheckAmount: 0,
@@ -37,6 +39,7 @@ export default function SetupWizard({ updateState }) {
     cashAccounts: [],
     oneTimeObligations: [],
     capitalSales: [],
+    assets: [],
     taxConfig: { ...DEFAULT_TAX_CONFIG },
     sellDate: new Date().toISOString().slice(0, 10),
     purchaseCategory: null,
@@ -86,11 +89,15 @@ export default function SetupWizard({ updateState }) {
         paycheckAmount: draft.paycheckAmount,
         paycheckFrequency: draft.paycheckFrequency,
         firstPayDate: draft.firstPayDate,
+        spousePaycheckAmount: draft.hasSpouseIncome ? (draft.spousePaycheckAmount || 0) : 0,
+        spousePaycheckFrequency: draft.spousePaycheckFrequency || "biweekly",
+        spouseFirstPayDate: draft.hasSpouseIncome ? (draft.spouseFirstPayDate || "") : "",
         expenses: draft.expenses,
         oneTimeObligations: draft.oneTimeObligations,
       },
       cashAccounts: draft.cashAccounts,
       capitalSales: draft.capitalSales,
+      assets: [...(prev.assets || []), ...draft.assets.filter(a => a.name || a.symbol)],
       dateOfBirth: draft.dateOfBirth,
       taxConfig: { ...prev.taxConfig, ...draft.taxConfig, combinedW2 },
       purchase: cat
@@ -108,9 +115,8 @@ export default function SetupWizard({ updateState }) {
   // Skip optional steps when user answers "No"
   const goNext = () => {
     let next = step + 1;
-    // Skip expenses detail if user said no
+    if (STEPS[next]?.key === "investments" && hasInvestments === false) next++;
     if (STEPS[next]?.key === "expenses" && hasExpenses === false) next++;
-    // Skip obligations detail if user said no
     if (STEPS[next]?.key === "obligations" && hasObligations === false) next++;
     setStep(next);
   };
@@ -119,6 +125,7 @@ export default function SetupWizard({ updateState }) {
     let prev = step - 1;
     if (STEPS[prev]?.key === "obligations" && hasObligations === false) prev--;
     if (STEPS[prev]?.key === "expenses" && hasExpenses === false) prev--;
+    if (STEPS[prev]?.key === "investments" && hasInvestments === false) prev--;
     setStep(Math.max(0, prev));
   };
 
@@ -169,6 +176,21 @@ export default function SetupWizard({ updateState }) {
           )}
           {currentStep.key === "cash" && (
             <CashStep draft={draft} setDraft={setDraft} inputStyle={inputStyle} labelStyle={labelStyle} addBtnStyle={addBtnStyle} removeBtnStyle={removeBtnStyle} placeholders={placeholders} />
+          )}
+          {currentStep.key === "investments" && (
+            <OptionalGateStep
+              answered={hasInvestments}
+              onAnswer={(val) => {
+                setHasInvestments(val);
+                if (!val) goNext();
+                else if (draft.assets.length === 0)
+                  setDraft(prev => ({ ...prev, assets: [{ id: uuid(), name: "", symbol: "", acquisitionDate: "", costBasis: 0, quantity: 0 }] }));
+              }}
+              question="Do you have investments to track?"
+              hint="Stocks, crypto, ETFs, or other assets. You can also import from CSV/XLSX on the Import page after setup."
+            >
+              <InvestmentsStep draft={draft} setDraft={setDraft} inputStyle={inputStyle} labelStyle={labelStyle} addBtnStyle={addBtnStyle} removeBtnStyle={removeBtnStyle} />
+            </OptionalGateStep>
           )}
           {currentStep.key === "expenses" && (
             <OptionalGateStep
@@ -295,6 +317,39 @@ function IncomeStep({ draft, update, inputStyle, labelStyle, placeholders }) {
             onChange={e => update("firstPayDate", e.target.value)} style={inputStyle} />
         </div>
       </div>
+
+      {/* Spouse income */}
+      <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 16, paddingTop: 14 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: colors.dim, cursor: "pointer", marginBottom: 12 }}>
+          <input type="checkbox" checked={draft.hasSpouseIncome || false}
+            onChange={e => update("hasSpouseIncome", e.target.checked)}
+            style={{ accentColor: colors.blue }} />
+          Does your spouse also earn income?
+        </label>
+        {draft.hasSpouseIncome && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Spouse Take-Home</label>
+              <input type="number" step="0.01" value={draft.spousePaycheckAmount || ""}
+                onChange={e => update("spousePaycheckAmount", parseFloat(e.target.value) || 0)}
+                style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Frequency</label>
+              <select value={draft.spousePaycheckFrequency || "biweekly"} onChange={e => update("spousePaycheckFrequency", e.target.value)} style={inputStyle}>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>First Pay Date</label>
+              <input type="date" value={draft.spouseFirstPayDate || ""}
+                onChange={e => update("spouseFirstPayDate", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -347,6 +402,93 @@ function CashStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle, remove
       {draft.cashAccounts.length === 0 && (
         <div style={{ textAlign: "center", padding: 20, color: colors.dim, fontSize: 10 }}>
           No accounts yet. Click "+ Add" to add your bank accounts.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function derivePriceKey(symbol) {
+  if (!symbol) return null;
+  const key = symbol.toLowerCase().trim();
+  if (YAHOO_TICKERS[key]) return key;
+  if (GEMINI_TICKERS[key]) return key;
+  if (COINGECKO_TICKERS[key]) return key;
+  return null;
+}
+
+function InvestmentsStep({ draft, setDraft, inputStyle, labelStyle, addBtnStyle, removeBtnStyle }) {
+  const [lastAddedId, setLastAddedId] = useState(() => draft.assets.length === 1 ? draft.assets[0].id : null);
+  const add = () => {
+    const newId = uuid();
+    setDraft(prev => ({
+      ...prev,
+      assets: [...prev.assets, { id: newId, name: "", symbol: "", acquisitionDate: "", costBasis: 0, quantity: 0 }],
+    }));
+    setLastAddedId(newId);
+  };
+  const remove = (id) => {
+    setDraft(prev => ({ ...prev, assets: prev.assets.filter(a => a.id !== id) }));
+  };
+  const set = (id, key, value) => {
+    setDraft(prev => ({
+      ...prev,
+      assets: prev.assets.map(a => {
+        if (a.id !== id) return a;
+        const updated = { ...a, [key]: value };
+        if (key === "symbol") {
+          updated.priceKey = derivePriceKey(value);
+        }
+        return updated;
+      }),
+    }));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: colors.blue }}>INVESTMENTS</div>
+          <div style={{ fontSize: 10, color: colors.dim, marginTop: 2 }}>Stocks, crypto, ETFs, or other tracked assets.</div>
+        </div>
+        <button onClick={add} style={addBtnStyle}>+ Add</button>
+      </div>
+      {draft.assets.map((asset) => (
+        <div key={asset.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: 6, marginBottom: 8, alignItems: "end" }}>
+          <div>
+            <label style={labelStyle}>Name</label>
+            <input value={asset.name} onChange={e => set(asset.id, "name", e.target.value)}
+              placeholder="GameStop" style={inputStyle} autoFocus={asset.id === lastAddedId} />
+          </div>
+          <div>
+            <label style={labelStyle}>Symbol</label>
+            <input value={asset.symbol || ""} onChange={e => set(asset.id, "symbol", e.target.value)}
+              placeholder="GME" style={{ ...inputStyle, textTransform: "uppercase" }} />
+            {asset.symbol && !derivePriceKey(asset.symbol) && (
+              <div style={{ fontSize: 8, color: colors.amber, marginTop: 2 }}>Unknown ticker</div>
+            )}
+          </div>
+          <div>
+            <label style={labelStyle}>Acquired</label>
+            <input type="date" value={asset.acquisitionDate || ""}
+              onChange={e => set(asset.id, "acquisitionDate", e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Cost Basis</label>
+            <input type="number" step="0.01" value={asset.costBasis || ""}
+              onChange={e => set(asset.id, "costBasis", parseFloat(e.target.value) || 0)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Quantity</label>
+            <input type="number" step="any" value={asset.quantity || ""}
+              onChange={e => set(asset.id, "quantity", parseFloat(e.target.value) || 0)} style={inputStyle} />
+          </div>
+          <button onClick={() => remove(asset.id)} style={removeBtnStyle}>x</button>
+        </div>
+      ))}
+      {draft.assets.length === 0 && (
+        <div style={{ textAlign: "center", padding: 20, color: colors.dim, fontSize: 10 }}>
+          No investments yet. Click "+ Add" to add manually, or import from CSV/XLSX after setup.
         </div>
       )}
     </div>

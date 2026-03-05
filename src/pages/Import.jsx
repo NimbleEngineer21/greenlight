@@ -8,7 +8,7 @@ import { parseTransamericaCSV } from "../lib/parsers/transamerica.js";
 import { parsePayPalCSV, applyPayPalAnnotations } from "../lib/parsers/paypal.js";
 import { detectColumnMappings, applyColumnMapping } from "../lib/parsers/custom.js";
 import { PROVIDERS } from "../data/providers.js";
-import { uuid } from "../data/defaults.js";
+import { uuid, KNOWN_PLATFORM_FEES } from "../data/defaults.js";
 import { fmt, fmtQty } from "../lib/calculations.js";
 
 const PLATFORM_OPTIONS = Object.entries(PROVIDERS).map(([value, p]) => ({ value, label: p.label }));
@@ -235,6 +235,15 @@ export default function Import({ updateState }) {
             importSource,
           }));
           next = { ...next, cashAccounts: [...cashAccounts, ...newCash] };
+        }
+
+        // Auto-populate platform fees for known platforms
+        const PLATFORM_FEE_MAP = {
+          ComputerShare: "cs", Gemini: "gem", PayPal: "pp", Fidelity: "fidelity",
+        };
+        const feeKey = PLATFORM_FEE_MAP[parsed.platform];
+        if (feeKey && KNOWN_PLATFORM_FEES[feeKey] && !next.platforms?.[feeKey]) {
+          next = { ...next, platforms: { ...next.platforms, [feeKey]: { ...KNOWN_PLATFORM_FEES[feeKey] } } };
         }
 
         return next;
@@ -632,7 +641,7 @@ function ParsedPreview({ parsed, onConfirm, onCancel, btnStyle }) {
             <tr style={{ borderBottom: `2px solid ${colors.border}` }}>
               {["Name", "Symbol", "Quantity", "Cost Basis", "Acquired", "Fee Type", "Notes"].map(h => (
                 <th key={h} style={{
-                  padding: "6px", textAlign: ["Quantity", "Cost Basis"].includes(h) ? "right" : "left",
+                  padding: "6px 10px", textAlign: ["Quantity", "Cost Basis"].includes(h) ? "right" : "left",
                   color: colors.dim, fontSize: 10, textTransform: "uppercase", letterSpacing: 1,
                 }}>{h}</th>
               ))}
@@ -641,13 +650,13 @@ function ParsedPreview({ parsed, onConfirm, onCancel, btnStyle }) {
           <tbody>
             {parsed.assets.map((a, i) => (
               <tr key={i} style={{ borderBottom: "1px solid #0e1620", background: i % 2 ? colors.bgAlt : "transparent" }}>
-                <td style={{ padding: "5px" }}>{a.name}</td>
-                <td style={{ color: colors.dim }}>{a.symbol}</td>
-                <td style={{ textAlign: "right" }}>{fmtQty(a.quantity)}</td>
-                <td style={{ textAlign: "right", color: colors.blue }}>{fmt(a.costBasis)}</td>
-                <td style={{ color: colors.dim }}>{a.acquisitionDate || "—"}</td>
-                <td style={{ color: colors.dim }}>{a.feeType}</td>
-                <td style={{ color: colors.dim, fontSize: 9 }}>{a.notes || ""}</td>
+                <td style={{ padding: "5px 10px" }}>{a.name}</td>
+                <td style={{ padding: "5px 10px", color: colors.dim }}>{a.symbol}</td>
+                <td style={{ padding: "5px 10px", textAlign: "right" }}>{fmtQty(a.quantity)}</td>
+                <td style={{ padding: "5px 10px", textAlign: "right", color: colors.blue }}>{fmt(a.costBasis)}</td>
+                <td style={{ padding: "5px 10px", color: colors.dim }}>{a.acquisitionDate || "—"}</td>
+                <td style={{ padding: "5px 10px", color: colors.dim }}>{a.feeType}</td>
+                <td style={{ padding: "5px 10px", color: colors.dim, fontSize: 9 }}>{a.notes || ""}</td>
               </tr>
             ))}
           </tbody>

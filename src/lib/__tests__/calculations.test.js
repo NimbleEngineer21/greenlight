@@ -65,18 +65,17 @@ describe("calcFee", () => {
 });
 
 describe("paychecksBefore", () => {
+  const beforeAll = "2026-02-01"; // _today before all test dates
+
   it("counts biweekly paychecks correctly", () => {
     const config = { paycheckAmount: 5000, firstPayDate: "2026-03-06", paycheckFrequency: "biweekly" };
-    // 3/6, 3/20 — 2 paychecks on or before 4/3 (next one is 4/3 but boundary may not include)
-    // Verify: sell date well past the 3rd paycheck
-    const count = paychecksBefore("2026-04-04", config);
+    const count = paychecksBefore("2026-04-04", config, beforeAll);
     expect(count).toBe(3); // 3/6, 3/20, 4/3
   });
 
   it("counts weekly paychecks", () => {
     const config = { paycheckAmount: 1000, firstPayDate: "2026-03-01", paycheckFrequency: "weekly" };
-    // 3/1, 3/8 — sell date 3/15 captures up to boundary
-    const count = paychecksBefore("2026-03-16", config);
+    const count = paychecksBefore("2026-03-16", config, beforeAll);
     expect(count).toBe(3); // 3/1, 3/8, 3/15
   });
 
@@ -84,28 +83,36 @@ describe("paychecksBefore", () => {
     expect(paychecksBefore("2026-04-01", {})).toBe(0);
     expect(paychecksBefore("2026-04-01", { paycheckAmount: 0 })).toBe(0);
   });
+
+  it("skips past paychecks already reflected in cash balance", () => {
+    const config = { paycheckAmount: 5000, firstPayDate: "2026-02-01", paycheckFrequency: "biweekly" };
+    // With _today = 3/10, past paychecks (2/1, 2/15, 3/1) are skipped
+    // Only 3/15, 3/29 counted through 4/1
+    const count = paychecksBefore("2026-04-01", config, "2026-03-10");
+    expect(count).toBe(2); // 3/15, 3/29
+  });
 });
 
 describe("expensesBefore", () => {
+  const beforeAll = "2025-12-01"; // _today before all test dates
+
   it("calculates monthly expenses", () => {
     const expenses = [{ amount: 1000, frequency: "monthly", startDate: "2026-01-01" }];
     // Jan, Feb, Mar = 3 months
-    const total = expensesBefore("2026-03-15", expenses);
+    const total = expensesBefore("2026-03-15", expenses, beforeAll);
     expect(total).toBe(3000);
   });
 
   it("calculates weekly expenses", () => {
     const expenses = [{ amount: 100, frequency: "weekly", startDate: "2026-03-01" }];
-    // 3/1, 3/8 = 2 weeks on or before 3/14; 3/1, 3/8, 3/15 = 3 by 3/16
-    const total = expensesBefore("2026-03-16", expenses);
-    expect(total).toBe(300);
+    const total = expensesBefore("2026-03-16", expenses, beforeAll);
+    expect(total).toBe(300); // 3/1, 3/8, 3/15
   });
 
   it("calculates biweekly expenses", () => {
     const expenses = [{ amount: 200, frequency: "biweekly", startDate: "2026-03-01" }];
-    // 3/1, 3/15 = 2 biweekly periods by 3/16
-    const total = expensesBefore("2026-03-16", expenses);
-    expect(total).toBe(400);
+    const total = expensesBefore("2026-03-16", expenses, beforeAll);
+    expect(total).toBe(400); // 3/1, 3/15
   });
 
   it("handles multiple expenses of different frequencies", () => {
@@ -113,13 +120,22 @@ describe("expensesBefore", () => {
       { amount: 1000, frequency: "monthly", startDate: "2026-03-01" },
       { amount: 50, frequency: "weekly", startDate: "2026-03-01" },
     ];
-    const total = expensesBefore("2026-03-16", expenses);
+    const total = expensesBefore("2026-03-16", expenses, beforeAll);
     // Monthly: 1 (3/1), Weekly: 3 (3/1, 3/8, 3/15)
     expect(total).toBe(1000 + 150);
   });
 
   it("returns 0 for empty expenses", () => {
     expect(expensesBefore("2026-04-01", [])).toBe(0);
+  });
+
+  it("skips past expenses already reflected in cash balance", () => {
+    const expenses = [{ amount: 1679, frequency: "monthly", startDate: "2026-01-01" }];
+    // With _today = 3/3, Jan and Feb payments are past (already paid).
+    // Only Mar (3/1 is past → next is Apr) wait — 3/1 < 3/3, so advance to 4/1.
+    // Sell date 4/18: only 4/1 counted = 1 occurrence
+    const total = expensesBefore("2026-04-18", expenses, "2026-03-03");
+    expect(total).toBe(1679); // only April payment
   });
 });
 

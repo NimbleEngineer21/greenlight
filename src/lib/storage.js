@@ -183,5 +183,44 @@ export function migrateState(state) {
     data.schemaVersion = 3;
   }
 
+  // v3 → v4: platform fees default empty (existing users keep theirs)
+  if (data.schemaVersion < 4) {
+    if (!data.platforms) data.platforms = {};
+    data.schemaVersion = 4;
+  }
+
+  // v4 → v5: add spouse paycheck fields
+  if (data.schemaVersion < 5) {
+    if (data.cashFlow) {
+      data.cashFlow = {
+        ...data.cashFlow,
+        spousePaycheckAmount: data.cashFlow.spousePaycheckAmount ?? 0,
+        spousePaycheckFrequency: data.cashFlow.spousePaycheckFrequency ?? "biweekly",
+        spouseFirstPayDate: data.cashFlow.spouseFirstPayDate ?? "",
+      };
+    }
+    data.schemaVersion = 5;
+  }
+
+  // v5 → v6: add liquidationPercent to assets and retirement accounts
+  if (data.schemaVersion < 6) {
+    if (Array.isArray(data.assets)) {
+      data.assets = data.assets.map(a => ({
+        ...a,
+        liquidationPercent: a.liquidationPercent ?? 100,
+      }));
+    }
+    if (data.retirement?.accounts && Array.isArray(data.retirement.accounts)) {
+      data.retirement = {
+        ...data.retirement,
+        accounts: data.retirement.accounts.map(a => ({
+          ...a,
+          liquidationPercent: a.liquidationPercent ?? 100,
+        })),
+      };
+    }
+    data.schemaVersion = 6;
+  }
+
   return data;
 }
