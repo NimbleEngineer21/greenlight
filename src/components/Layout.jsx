@@ -1,10 +1,18 @@
+import { useSyncExternalStore } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { colors, fonts } from "../theme.js";
 import { track } from "../lib/analytics.js";
 import DevImportBanner from "./DevImportBanner.jsx";
 
-const NOW_MS = Date.now();
 const STALE_MS = 30 * 60 * 1000; // 30 minutes
+const TICK_MS = 60_000;
+
+let _now = Date.now();
+let _listeners = [];
+setInterval(() => { _now = Date.now(); _listeners.forEach(fn => fn()); }, TICK_MS);
+
+function subscribeNow(cb) { _listeners.push(cb); return () => { _listeners = _listeners.filter(fn => fn !== cb); }; }
+function getNow() { return _now; }
 
 const CORE_NAV = [
   { to: "/", label: "Dashboard", icon: "◈" },
@@ -50,7 +58,8 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
     : planningMode === "vehicle" ? VEHICLE_PLANNING_NAV
     : null;
 
-  const isStale = lastFetch && (NOW_MS - lastFetch.getTime() > STALE_MS);
+  const now = useSyncExternalStore(subscribeNow, getNow);
+  const isStale = lastFetch && (now - lastFetch.getTime() > STALE_MS);
 
   return (
     <div className="gl-layout" style={{ fontFamily: fonts.mono, background: colors.bg, color: colors.text, height: "100vh", display: "flex", overflow: "hidden" }}>

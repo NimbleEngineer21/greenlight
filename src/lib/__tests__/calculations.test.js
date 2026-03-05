@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isLongTerm, calcFee, paychecksBefore, expensesBefore,
-  obligationsBefore, calcRetirementNet, calcSummary,
+  obligationsBefore, calcCashFlow, calcRetirementNet, calcSummary,
   calcMonthlySavings, calcSavingsRate, fmt, fmtQty,
 } from "../calculations.js";
 
@@ -389,6 +389,168 @@ describe("calcMonthlySavings", () => {
       expenses: [{ amount: 5000, frequency: "monthly", startDate: "2026-01-01" }],
     });
     expect(result.monthlySavings).toBe(-2000);
+  });
+});
+
+describe("calcCashFlow", () => {
+  const baseCF = {
+    paycheckAmount: 5000, firstPayDate: "2026-03-06", paycheckFrequency: "biweekly",
+    spousePaycheckAmount: 0, spouseFirstPayDate: "", spousePaycheckFrequency: "biweekly",
+    expenses: [], oneTimeObligations: [],
+  };
+  const today = "2026-02-01";
+
+  it("computes net from paychecks minus expenses minus obligations", () => {
+    const cf = { ...baseCF, expenses: [{ amount: 2000, frequency: "monthly", startDate: "2026-03-01" }] };
+    const result = calcCashFlow("2026-04-17", cf, today);
+    expect(result.pays).toBeGreaterThan(0);
+    expect(result.payTotal).toBe(result.pays * 5000);
+    expect(result.expTotal).toBeGreaterThan(0);
+    expect(result.net).toBe(result.payTotal + result.spousePayTotal - result.expTotal - result.obTotal);
+  });
+
+  it("includes spouse paychecks in net", () => {
+    const cf = {
+      ...baseCF,
+      spousePaycheckAmount: 3000,
+      spouseFirstPayDate: "2026-03-06",
+      spousePaycheckFrequency: "biweekly",
+    };
+    const result = calcCashFlow("2026-04-17", cf, today);
+    expect(result.spousePays).toBeGreaterThan(0);
+    expect(result.spousePayTotal).toBe(result.spousePays * 3000);
+    expect(result.net).toBe(result.payTotal + result.spousePayTotal - result.expTotal - result.obTotal);
+  });
+
+  it("returns zero spouse totals when no spouse config", () => {
+    const result = calcCashFlow("2026-04-17", baseCF, today);
+    expect(result.spousePays).toBe(0);
+    expect(result.spousePayTotal).toBe(0);
+  });
+
+  it("counts mortgageCount from monthly expenses only", () => {
+    const cf = {
+      ...baseCF,
+      expenses: [
+        { amount: 1679, frequency: "monthly", startDate: "2026-03-01" },
+        { amount: 100, frequency: "weekly", startDate: "2026-03-01" },
+      ],
+    };
+    const result = calcCashFlow("2026-04-17", cf, today);
+    expect(result.mortgageCount).toBeGreaterThan(0);
+  });
+});
+
+describe("calcRetirementNet with liquidationPercent", () => {
+  it("applies partial liquidation to pre-tax account", () => {
+    const result = calcRetirementNet({
+      enabled: true, penaltyRate: 0.10, taxRate: 0.24, stateTaxRate: 0,
+      accounts: [{ accountType: "pretax_401k", balance: 100000, contributions: 0, liquidationPercent: 50 }],
+    });
+    expect(result.gross).toBe(50000);
+    expect(result.accounts[0].penalty).toBe(5000);
+    expect(result.accounts[0].tax).toBe(12000);
+    expect(result.accounts[0].net).toBe(33000);
+  });
+
+  it("applies partial liquidation to Roth — taxes only proportional earnings", () => {
+    const result = calcRetirementNet({
+      enabled: true, penaltyRate: 0.10, taxRate: 0.24, stateTaxRate: 0,
+      accounts: [{ accountType: "roth_401k", balance: 20000, contributions: 15000, liquidationPercent: 50 }],
+    });
+    // effBalance=10000, effContributions=7500, earnings=2500
+    expect(result.accounts[0].penalty).toBe(250);
+    expect(result.accounts[0].tax).toBe(600);
+    expect(result.accounts[0].net).toBe(10000 - 250 - 600);
+  });
+
+  it("defaults to 100% when liquidationPercent is undefined", () => {
+    const result = calcRetirementNet({
+      enabled: true, penaltyRate: 0.10, taxRate: 0.24, stateTaxRate: 0,
+      accounts: [{ accountType: "pretax_401k", balance: 10000, contributions: 0 }],
+    });
+    expect(result.gross).toBe(10000);
+  });
+});
+
+describe("calcSummary with liquidationPercent", () => {
+  const baseState = {
+    sellDate: "2026-04-17",
+    assets: [],
+    cashAccounts: [],
+    retirement: { enabled: false },
+    taxConfig: { taxMode: "flat", ltcgRate: 0.15, stcgRate: 0.24, niitRate: 0.038, niitApplies: false },
+    platforms: {},
+    cashFlow: {
+      paycheckAmount: 0, firstPayDate: "", paycheckFrequency: "biweekly",
+      spousePaycheckAmount: 0, spouseFirstPayDate: "", spousePaycheckFrequency: "biweekly",
+      expenses: [], oneTimeObligations: [],
+    },
+  };
+
+  it("applies liquidationPercent to asset gross/basis/fee", () => {
+    const state = {
+      ...baseState,
+      assets: [{
+        id: "a1", quantity: 100, costBasis: 5000, acquisitionDate: "2024-01-01",
+        priceKey: "test", feeType: "none", liquidationPercent: 50,
+      }],
+    };
+    const result = calcSummary(state, { test: 100 });
+    // effectiveQty = 50, gross = 50 * 100 = 5000, effectiveBasis = 2500
+    expect(result.rows[0].gross).toBe(5000);
+    expect(result.rows[0].gainLoss).toBe(2500);
+  });
+
+  it("defaults to 100% when liquidationPercent is missing", () => {
+    const state = {
+      ...baseState,
+      assets: [{
+        id: "a1", quantity: 100, costBasis: 5000, acquisitionDate: "2024-01-01",
+        priceKey: "test", feeType: "none",
+      }],
+    };
+    const result = calcSummary(state, { test: 100 });
+    expect(result.rows[0].gross).toBe(10000);
+    expect(result.rows[0].gainLoss).toBe(5000);
+  });
+});
+
+describe("calcMonthlySavings with spouse income", () => {
+  it("includes spouse biweekly income", () => {
+    const result = calcMonthlySavings({
+      paycheckAmount: 5000, paycheckFrequency: "biweekly",
+      spousePaycheckAmount: 3000, spousePaycheckFrequency: "biweekly",
+      expenses: [],
+    });
+    expect(result.monthlyIncome).toBeCloseTo((5000 + 3000) * 26 / 12, 2);
+  });
+
+  it("includes spouse weekly income", () => {
+    const result = calcMonthlySavings({
+      paycheckAmount: 8000, paycheckFrequency: "monthly",
+      spousePaycheckAmount: 1000, spousePaycheckFrequency: "weekly",
+      expenses: [],
+    });
+    expect(result.monthlyIncome).toBeCloseTo(8000 + 1000 * 52 / 12, 2);
+  });
+
+  it("includes spouse monthly income", () => {
+    const result = calcMonthlySavings({
+      paycheckAmount: 5000, paycheckFrequency: "monthly",
+      spousePaycheckAmount: 4000, spousePaycheckFrequency: "monthly",
+      expenses: [],
+    });
+    expect(result.monthlyIncome).toBe(9000);
+  });
+
+  it("ignores spouse when amount is 0", () => {
+    const result = calcMonthlySavings({
+      paycheckAmount: 5000, paycheckFrequency: "monthly",
+      spousePaycheckAmount: 0, spousePaycheckFrequency: "biweekly",
+      expenses: [],
+    });
+    expect(result.monthlyIncome).toBe(5000);
   });
 });
 

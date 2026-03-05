@@ -132,7 +132,7 @@ export function calcRetirementNet(retirement) {
     let penalty = 0, tax = 0;
 
     if (accountType === "roth_401k" || accountType === "roth_ira") {
-      // Roth: only earnings (balance - contributions) are penalized and taxed
+      // Roth: only the earnings portion of the liquidated amount is penalized/taxed
       const earnings = Math.max(0, effBalance - effContributions);
       penalty = earnings * penaltyRate;
       tax = earnings * incomeTaxRate;

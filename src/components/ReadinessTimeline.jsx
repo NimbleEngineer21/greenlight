@@ -19,21 +19,16 @@ export default function ReadinessTimeline({ readinessMonth, totalMonths, markers
 
   const barPct = readinessMonth != null ? pct(readinessMonth) : 100;
 
-  // Sort markers by position and stagger above/below to avoid label overlap
+  // Sort markers by position and stagger labels above/below to avoid overlap
   const sorted = [...markers].sort((a, b) => a.month - b.month);
-  const staggered = sorted.map((m, i) => {
-    // Default: alternate above/below
+  const staggered = [];
+  for (let i = 0; i < sorted.length; i++) {
     let above = i % 2 === 0;
-    // If adjacent marker is within 8% of track, force alternation
-    if (i > 0) {
-      const prevPct = pct(sorted[i - 1].month);
-      const currPct = pct(m.month);
-      if (Math.abs(currPct - prevPct) < 8) {
-        above = !staggered[i - 1].above;
-      }
+    if (i > 0 && Math.abs(pct(sorted[i].month) - pct(sorted[i - 1].month)) < 8) {
+      above = !staggered[i - 1].above;
     }
-    return { ...m, above };
-  });
+    staggered.push({ ...sorted[i], above });
+  }
 
   return (
     <div style={{ padding: "30px 0 12px" }}>
