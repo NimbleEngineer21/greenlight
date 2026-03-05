@@ -74,7 +74,7 @@ export default function Layout({ sellDate, onSellDateChange, purchaseDate, onPur
             letterSpacing: 1,
             textTransform: "uppercase",
           }}>
-            Financial Planning
+            Personal Finance
           </div>
         </div>
 

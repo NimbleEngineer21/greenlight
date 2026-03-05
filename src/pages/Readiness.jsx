@@ -108,7 +108,7 @@ export default function Readiness({ state, updateState, prices }) {
   if (!purchase.category) {
     return (
       <div style={{ textAlign: "center", padding: 60 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: colors.textBright, marginBottom: 12 }}>Financial Readiness</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: colors.textBright, marginBottom: 12 }}>Purchase Readiness</div>
         <div style={{ color: colors.dim }}>Activate purchase planning from the Dashboard to use readiness projections.</div>
       </div>
     );
@@ -116,7 +116,7 @@ export default function Readiness({ state, updateState, prices }) {
 
   return (
     <div>
-      <h1 style={styles.pageTitle}>Financial Readiness</h1>
+      <h1 style={styles.pageTitle}>Purchase Readiness</h1>
 
       {/* Hero: You need / You have / Gap */}
       <div style={{
@@ -150,10 +150,10 @@ export default function Readiness({ state, updateState, prices }) {
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: isReady ? colors.green : colors.amber }}>
               {isReady
-                ? "Ready now"
+                ? "Funds available"
                 : readinessDate
-                  ? `Ready by ${readinessDate.date}`
-                  : "Not reachable in 5 years"}
+                  ? `Estimated by ${readinessDate.date}`
+                  : "Not estimated within 5 years"}
             </div>
             {targetPurchaseDate && !isReady && readinessDate && targetMonth != null && (
               <div style={{ fontSize: 12, color: readinessDate.month <= targetMonth ? colors.green : colors.red, marginTop: 4 }}>
@@ -326,7 +326,7 @@ export default function Readiness({ state, updateState, prices }) {
 
       {/* Footer */}
       <div style={{ fontSize: 12, color: colors.footerDim, textAlign: "right" }}>
-        Projections use current prices and tax rates · Growth assumptions are opt-in
+        Estimates use current prices and tax rates · For illustration only · Growth assumptions are opt-in
       </div>
     </div>
   );

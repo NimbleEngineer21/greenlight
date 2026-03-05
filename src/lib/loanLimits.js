@@ -5,10 +5,9 @@
  * conforming loan limit) and calculates the rate/payment impact.
  */
 
-import { getConformingLimit, BASELINE_LIMIT } from "../data/conformingLimits.js";
+import { getConformingLimit } from "../data/conformingLimits.js";
+export { BASELINE_LIMIT } from "../data/conformingLimits.js";
 import { calcMonthlyPI } from "./mortgageCalc.js";
-
-export { BASELINE_LIMIT };
 export const DEFAULT_JUMBO_PREMIUM = 0.25; // percentage points above conforming rate
 
 /**
@@ -43,14 +42,14 @@ export function calcEffectiveRate(baseRatePercent, isJumbo, jumboSpreadPercent =
 }
 
 /**
- * Suggest a down payment increase to stay under the conforming limit.
+ * Calculate the down payment needed to stay under the conforming limit.
  * Returns null if the loan is already conforming.
  * @param {number} homePrice
  * @param {number} conformingLimit
  * @param {number} currentDownPercent
  * @returns {{ requiredDownPercent: number, requiredDownAmount: number, additionalDown: number } | null}
  */
-export function suggestConformingDown(homePrice, conformingLimit, currentDownPercent) {
+export function calcConformingDown(homePrice, conformingLimit, currentDownPercent) {
   if (!homePrice || homePrice <= 0 || !conformingLimit) return null;
 
   const currentDown = homePrice * (currentDownPercent / 100);

@@ -75,7 +75,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
     );
   }
 
-  const affordColor = liquidation.canAfford
+  const statusColor = liquidation.isCovered
     ? (liquidation.surplus > cashNeeded.total * 0.1 ? colors.green : colors.amber)
     : colors.red;
 
@@ -138,7 +138,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
             <input
               type="number" step="1000"
               value={price || ""}
-              onChange={e => updatePurchase(isHome ? "homePrice" : "carPrice", parseFloat(e.target.value) || 0)}
+              onChange={e => updatePurchase(isHome ? "homePrice" : "carPrice", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -149,7 +149,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
                 <input
                   type="number" step="1" min="0" max="100"
                   value={purchase.downPaymentPercent ?? 20}
-                  onChange={e => updatePurchase("downPaymentPercent", parseFloat(e.target.value) || 0)}
+                  onChange={e => updatePurchase("downPaymentPercent", Number.parseFloat(e.target.value) || 0)}
                   style={styles.input}
                 />
               </div>
@@ -166,7 +166,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
               <input
                 type="number" step="100"
                 value={purchase.carDownPayment ?? 0}
-                onChange={e => updatePurchase("carDownPayment", parseFloat(e.target.value) || 0)}
+                onChange={e => updatePurchase("carDownPayment", Number.parseFloat(e.target.value) || 0)}
                 style={styles.input}
               />
             </div>
@@ -253,7 +253,7 @@ export default function PurchasePlanning({ state, updateState, prices }) {
                   borderRadius: 6, padding: 12, marginBottom: 12, fontSize: 13, color: colors.text,
                 }}>
                   Loan exceeds the {fmt(jumbo.conformingLimit)} conforming limit by {fmt(jumbo.overage)}.
-                  Consider increasing the down payment on the Loans page.
+                  A higher down payment on the Loans page would bring the loan under the conforming limit.
                 </div>
               );
             })()}
@@ -299,10 +299,10 @@ export default function PurchasePlanning({ state, updateState, prices }) {
         </div>
       </div>
 
-      {/* Liquidation Analysis — Can You Afford It? */}
+      {/* Liquidation Analysis — Purchase vs. Available Funds */}
       <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, padding: 18 }}>
         <div style={{ fontSize: 10, color: colors.dim, fontWeight: 600, marginBottom: 12, letterSpacing: 1.5 }}>
-          CAN YOU AFFORD IT?
+          PURCHASE VS. AVAILABLE FUNDS
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
@@ -333,16 +333,16 @@ export default function PurchasePlanning({ state, updateState, prices }) {
             <div style={{ fontSize: 18, fontWeight: 700 }}>{fmt(liquidation.totalAvailable)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={styles.labelCompact}>{liquidation.canAfford ? "Surplus" : "Shortfall"}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: affordColor }}>
-              {liquidation.canAfford ? fmt(liquidation.surplus) : `(${fmt(liquidation.shortfall).replace("$", "")})`}
+            <div style={styles.labelCompact}>{liquidation.isCovered ? "Surplus" : "Shortfall"}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: statusColor }}>
+              {liquidation.isCovered ? fmt(liquidation.surplus) : `(${fmt(liquidation.shortfall).replace("$", "")})`}
             </div>
           </div>
         </div>
 
-        {!liquidation.canAfford && (
+        {!liquidation.isCovered && (
           <div style={{ fontSize: 13, color: colors.amber, marginTop: 10 }}>
-            You need {fmt(liquidation.shortfall)} more to cover this purchase at current asset values.
+            There is a {fmt(liquidation.shortfall)} gap at current asset values.
           </div>
         )}
       </div>

@@ -101,12 +101,12 @@ function fmtShortfall(n) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Liquidation analysis — can the user afford the purchase with current assets?
+ * Liquidation analysis — do available funds cover the purchase at current asset values?
  * Uses calcSummary output to determine available cash from all sources.
  *
  * @param {number} cashNeeded - total cash needed from calcTotalCashNeeded
  * @param {Object} summary - result of calcSummary(state, prices)
- * @returns {{ canAfford, surplus, shortfall, cashContribution, assetContribution, retirementContribution, cashFlowContribution, totalAvailable }}
+ * @returns {{ isCovered, surplus, shortfall, cashContribution, assetContribution, retirementContribution, cashFlowContribution, totalAvailable }}
  */
 export function calcLiquidationAnalysis(cashNeeded, summary) {
   const cashAvailable = summary.cashTotal || 0;
@@ -120,7 +120,7 @@ export function calcLiquidationAnalysis(cashNeeded, summary) {
   const surplus = totalAvailable - cashNeeded;
 
   return {
-    canAfford: surplus >= 0,
+    isCovered: surplus >= 0,
     surplus: Math.max(0, surplus),
     shortfall: Math.max(0, -surplus),
     cashContribution: cashAvailable,

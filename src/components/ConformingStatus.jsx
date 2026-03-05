@@ -1,28 +1,28 @@
 import { useMemo } from "react";
 import { colors, styles } from "../theme.js";
 import { fmt } from "../lib/calculations.js";
-import { detectJumbo, suggestConformingDown, calcJumboImpact, calcEffectiveRate } from "../lib/loanLimits.js";
+import { detectJumbo, calcConformingDown, calcJumboImpact, calcEffectiveRate } from "../lib/loanLimits.js";
 import { YEAR } from "../data/conformingLimits.js";
 
 
 /**
  * Conforming Loan Status card — shows whether the loan is conforming or jumbo,
- * with rate impact analysis and a suggestion to increase down payment.
+ * with rate impact analysis and a conforming down-payment option.
  */
 export default function ConformingStatus({
   zipCode, loanAmount, homePrice, currentDownPercent,
   baseRate, termYears, jumboSpread, zipInfo,
-  onZipChange, onSpreadChange, onApplySuggestion,
+  onZipChange, onSpreadChange, onApplyConformingDown,
 }) {
-  const hasZip = zipCode && zipCode.length === 5;
+  const hasZip = zipCode?.length === 5;
 
   const jumbo = useMemo(
     () => hasZip ? detectJumbo(loanAmount, zipCode, !!zipInfo) : null,
     [hasZip, loanAmount, zipCode, zipInfo],
   );
 
-  const suggestion = useMemo(
-    () => jumbo?.isJumbo ? suggestConformingDown(homePrice, jumbo.conformingLimit, currentDownPercent) : null,
+  const conformingOption = useMemo(
+    () => jumbo?.isJumbo ? calcConformingDown(homePrice, jumbo.conformingLimit, currentDownPercent) : null,
     [jumbo, homePrice, currentDownPercent],
   );
 
@@ -35,9 +35,9 @@ export default function ConformingStatus({
     ? calcEffectiveRate(baseRate, true, jumboSpread)
     : baseRate;
 
-  const locationLabel = zipInfo
-    ? `${zipInfo.city}, ${zipInfo.county} Co., ${zipInfo.state}`
-    : hasZip ? "Looking up..." : null;
+  let locationLabel = null;
+  if (zipInfo) locationLabel = `${zipInfo.city}, ${zipInfo.county} Co., ${zipInfo.state}`;
+  else if (hasZip) locationLabel = "Looking up...";
 
   return (
     <div style={{ ...styles.card, marginBottom: 14 }}>
@@ -124,7 +124,7 @@ export default function ConformingStatus({
                   <input
                     type="number" step="0.125" min="0" max="2"
                     value={jumboSpread}
-                    onChange={e => onSpreadChange(parseFloat(e.target.value) || 0)}
+                    onChange={e => onSpreadChange(Number.parseFloat(e.target.value) || 0)}
                     style={{ ...styles.input, width: 80, padding: "4px 8px", fontSize: 13 }}
                   />
                   <div style={{ fontSize: 10, color: colors.dim, marginTop: 1 }}>% above conforming</div>
@@ -151,25 +151,25 @@ export default function ConformingStatus({
                 )}
               </div>
 
-              {/* Suggestion to increase down payment */}
-              {suggestion && (
+              {/* Conforming option — down payment to avoid jumbo */}
+              {conformingOption && (
                 <div style={{
                   background: colors.card, border: `1px solid ${colors.border}`,
                   borderRadius: 6, padding: 12, marginTop: 8,
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
                   <div style={{ fontSize: 13, color: colors.text }}>
-                    Increase down payment to{" "}
+                    A down payment of{" "}
                     <span style={{ color: colors.green, fontWeight: 600 }}>
-                      {suggestion.requiredDownPercent.toFixed(1)}%
+                      {conformingOption.requiredDownPercent.toFixed(1)}%
                     </span>
-                    {" "}({fmt(suggestion.requiredDownAmount)}) to stay conforming.
+                    {" "}({fmt(conformingOption.requiredDownAmount)}) would keep the loan conforming.
                     <span style={{ color: colors.dim, marginLeft: 8 }}>
-                      +{fmt(suggestion.additionalDown)} more needed
+                      +{fmt(conformingOption.additionalDown)} more needed
                     </span>
                   </div>
                   <button
-                    onClick={() => onApplySuggestion(suggestion.requiredDownPercent)}
+                    onClick={() => onApplyConformingDown(conformingOption.requiredDownPercent)}
                     style={{
                       ...styles.btn, fontSize: 11, padding: "5px 12px",
                       color: colors.green, borderColor: colors.greenDim,
