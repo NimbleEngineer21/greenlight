@@ -1,6 +1,6 @@
-// Financial readiness projection engine
-// Projects cash position forward month-by-month to determine when the user
-// can afford a target purchase amount. Default: 0% growth (pure linear).
+// Purchase readiness projection engine
+// Projects cash position forward month-by-month to determine when available
+// funds meet a target purchase amount. Default: 0% growth (pure linear).
 
 import { calcSummary, calcMonthlySavings, isLongTerm } from "./calculations.js";
 

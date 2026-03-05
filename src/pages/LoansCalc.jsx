@@ -179,7 +179,7 @@ function MortgageView({
             <div style={styles.labelCompact}>Term (years)</div>
             <select
               value={term}
-              onChange={e => updateMortgage("termYears", parseInt(e.target.value, 10) || 30)}
+              onChange={e => updateMortgage("termYears", Number.parseInt(e.target.value, 10) || 30)}
               style={{ ...styles.input, cursor: "pointer" }}
             >
               <option value={15}>15</option>
@@ -193,7 +193,7 @@ function MortgageView({
             <input
               type="number" step="0.125" min="0" max="20"
               value={rate || ""}
-              onChange={e => updateMortgage("ratePercent", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("ratePercent", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
             {latestFredRate && (
@@ -207,7 +207,7 @@ function MortgageView({
             <input
               type="number" step="0.1" min="0"
               value={mortgage.pmiRate ?? 0.5}
-              onChange={e => updateMortgage("pmiRate", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("pmiRate", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -219,7 +219,7 @@ function MortgageView({
             <input
               type="number" step="100"
               value={mortgage.propertyTax ?? 3500}
-              onChange={e => updateMortgage("propertyTax", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("propertyTax", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -228,7 +228,7 @@ function MortgageView({
             <input
               type="number" step="100"
               value={mortgage.homeInsurance ?? 1800}
-              onChange={e => updateMortgage("homeInsurance", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("homeInsurance", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -237,7 +237,7 @@ function MortgageView({
             <input
               type="number" step="10"
               value={mortgage.hoaDues ?? 0}
-              onChange={e => updateMortgage("hoaDues", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("hoaDues", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -246,7 +246,7 @@ function MortgageView({
             <input
               type="number" step="1" min="1" max="30"
               value={mortgage.expectedStayYears ?? 10}
-              onChange={e => updateMortgage("expectedStayYears", parseInt(e.target.value) || 10)}
+              onChange={e => updateMortgage("expectedStayYears", Number.parseInt(e.target.value) || 10)}
               style={styles.input}
             />
           </div>
@@ -265,7 +265,7 @@ function MortgageView({
         zipInfo={zipInfo}
         onZipChange={val => updatePurchase("zipCode", val)}
         onSpreadChange={val => updateMortgage("jumboSpreadPercent", val)}
-        onApplySuggestion={pct => updatePurchase("downPaymentPercent", pct)}
+        onApplyConformingDown={pct => updatePurchase("downPaymentPercent", pct)}
       />
 
       {/* Rate Chart */}
@@ -377,7 +377,7 @@ function MortgageView({
             <input
               type="number" step="0.5" min="0" max="4"
               value={points}
-              onChange={e => updateMortgage("pointsBought", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("pointsBought", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -386,7 +386,7 @@ function MortgageView({
             <input
               type="number" step="0.5" min="0"
               value={mortgage.opportunityCostRate ?? 7}
-              onChange={e => updateMortgage("opportunityCostRate", parseFloat(e.target.value) || 0)}
+              onChange={e => updateMortgage("opportunityCostRate", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
             <div style={{ fontSize: 10, color: colors.dim, marginTop: 2 }}>S&P 500 avg: ~7%</div>
@@ -512,7 +512,7 @@ function AutoLoanView({ purchase, autoLoan, updateAutoLoan, onOverride, onToggle
             <div style={styles.labelCompact}>Term (months)</div>
             <select
               value={termMonths}
-              onChange={e => updateAutoLoan("termMonths", parseInt(e.target.value, 10) || 60)}
+              onChange={e => updateAutoLoan("termMonths", Number.parseInt(e.target.value, 10) || 60)}
               style={{ ...styles.input, cursor: "pointer" }}
             >
               <option value={24}>24</option>
@@ -528,7 +528,7 @@ function AutoLoanView({ purchase, autoLoan, updateAutoLoan, onOverride, onToggle
             <input
               type="number" step="0.25" min="0" max="30"
               value={rate || ""}
-              onChange={e => updateAutoLoan("ratePercent", parseFloat(e.target.value) || 0)}
+              onChange={e => updateAutoLoan("ratePercent", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>
@@ -537,7 +537,7 @@ function AutoLoanView({ purchase, autoLoan, updateAutoLoan, onOverride, onToggle
             <input
               type="number" step="500"
               value={tradeIn || ""}
-              onChange={e => updateAutoLoan("tradeInValue", parseFloat(e.target.value) || 0)}
+              onChange={e => updateAutoLoan("tradeInValue", Number.parseFloat(e.target.value) || 0)}
               style={styles.input}
             />
           </div>

@@ -148,20 +148,20 @@ describe("calcLiquidationAnalysis", () => {
     cashFlow: { net: cfNet },
   });
 
-  it("returns canAfford=true when surplus", () => {
+  it("returns isCovered=true when surplus", () => {
     const summary = makeSummary(20000, 80000, 5000, 10000, 5000);
     // Available: 20k + (80k - 5k) + 10k + 5k = 110k
     const result = calcLiquidationAnalysis(90000, summary);
-    expect(result.canAfford).toBe(true);
+    expect(result.isCovered).toBe(true);
     expect(result.surplus).toBe(20000);
     expect(result.shortfall).toBe(0);
   });
 
-  it("returns canAfford=false when shortfall", () => {
+  it("returns isCovered=false when shortfall", () => {
     const summary = makeSummary(5000, 20000, 3000, 0, 2000);
     // Available: 5k + (20k - 3k) + 0 + 2k = 24k
     const result = calcLiquidationAnalysis(50000, summary);
-    expect(result.canAfford).toBe(false);
+    expect(result.isCovered).toBe(false);
     expect(result.shortfall).toBe(26000);
     expect(result.surplus).toBe(0);
   });
@@ -177,7 +177,7 @@ describe("calcLiquidationAnalysis", () => {
   it("handles zero values gracefully", () => {
     const summary = makeSummary(0, 0, 0, 0, 0);
     const result = calcLiquidationAnalysis(10000, summary);
-    expect(result.canAfford).toBe(false);
+    expect(result.isCovered).toBe(false);
     expect(result.totalAvailable).toBe(0);
     expect(result.shortfall).toBe(10000);
   });
@@ -186,7 +186,7 @@ describe("calcLiquidationAnalysis", () => {
     // Simulate summary with missing nested properties
     const sparse = { cashTotal: 5000 };
     const result = calcLiquidationAnalysis(10000, sparse);
-    expect(result.canAfford).toBe(false);
+    expect(result.isCovered).toBe(false);
     expect(result.totalAvailable).toBe(5000);
     expect(Number.isNaN(result.totalAvailable)).toBe(false);
     expect(Number.isNaN(result.shortfall)).toBe(false);

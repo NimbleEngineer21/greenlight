@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getConformingLimit, BASELINE_LIMIT } from "../../data/conformingLimits.js";
 import {
-  detectJumbo, calcEffectiveRate, suggestConformingDown, calcJumboImpact,
+  detectJumbo, calcEffectiveRate, calcConformingDown, calcJumboImpact,
   DEFAULT_JUMBO_PREMIUM,
 } from "../loanLimits.js";
 
@@ -104,21 +104,21 @@ describe("calcEffectiveRate", () => {
   });
 });
 
-// ── suggestConformingDown ────────────────────────────────────────────────────
+// ── calcConformingDown ────────────────────────────────────────────────────
 
-describe("suggestConformingDown", () => {
+describe("calcConformingDown", () => {
   it("returns null when loan is already conforming", () => {
     // 500K home, 20% down = 400K loan, well under 832,750
-    expect(suggestConformingDown(500000, BASELINE_LIMIT, 20)).toBeNull();
+    expect(calcConformingDown(500000, BASELINE_LIMIT, 20)).toBeNull();
   });
 
   it("returns null when home price is below limit", () => {
-    expect(suggestConformingDown(700000, BASELINE_LIMIT, 0)).toBeNull();
+    expect(calcConformingDown(700000, BASELINE_LIMIT, 0)).toBeNull();
   });
 
-  it("suggests increased down payment for jumbo loan", () => {
+  it("calculates required down payment for jumbo loan", () => {
     // 1M home, 832,750 limit, 10% down = 900K loan (67,250 over limit)
-    const result = suggestConformingDown(1000000, BASELINE_LIMIT, 10);
+    const result = calcConformingDown(1000000, BASELINE_LIMIT, 10);
     expect(result).not.toBeNull();
     // Required down = 1M - 832,750 = 167,250 = 16.725% → rounds up to 16.8%
     expect(result.requiredDownPercent).toBeCloseTo(16.8, 0);
@@ -127,8 +127,8 @@ describe("suggestConformingDown", () => {
   });
 
   it("returns null for zero/invalid inputs", () => {
-    expect(suggestConformingDown(0, BASELINE_LIMIT, 20)).toBeNull();
-    expect(suggestConformingDown(-100, BASELINE_LIMIT, 20)).toBeNull();
+    expect(calcConformingDown(0, BASELINE_LIMIT, 20)).toBeNull();
+    expect(calcConformingDown(-100, BASELINE_LIMIT, 20)).toBeNull();
   });
 });
 
